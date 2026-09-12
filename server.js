@@ -1,29 +1,41 @@
 "use strict";
 
+/*
+============================================================
+ RIFT DOUBLE RADAR
+ SERVER ONLINE
+============================================================
+
+ Compatível com:
+ - Railway
+ - Render
+ - VPS
+ - Node.js 18+
+
+ Arquivos:
+   server.js
+   index.html
+   package.json
+
+============================================================
+*/
+
 const http = require("http");
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
 
-/* ============================================================
-   RIFT DOUBLE RADAR V4.1.3 ADAPTIVE
-   ------------------------------------------------------------
-   CONFIGURAÇÃO:
-   - Backtest mínimo: 1%
-   - Backtest recente mínimo: 1%
-   - Piso adaptativo histórico: 1%
-   - Piso adaptativo recente: 1%
-   - Correção TDZ uniqueWarnings / uniqueBlockers / sinal
-   ============================================================ */
-
 const PORT = Number(process.env.PORT || 3000);
-const ROOT = __dirname;
-const VERSION = "RIFT Double Radar V4.1.3 ADAPTIVE";
+const HOST = "0.0.0.0";
 
-/* ============================================================
-   FONTE
-============================================================ */
+const VERSION = "RIFT Double Radar ONLINE 5.0";
+
+/*
+============================================================
+ FONTES
+============================================================
+*/
 
 const TIPMINER_URL =
   "https://api.core.public.tipminer.com/v1/double/rounds/6ee2f33f-7dbf-40ae-b01c-b05368c806ba/history?limit=200&timezone=UTC";
@@ -33,9 +45,11 @@ const BLAZE_URLS = [
   "https://blaze.com/api/roulette_games/recent"
 ];
 
-/* ============================================================
-   CONFIGURAÇÃO
-============================================================ */
+/*
+============================================================
+ CONFIGURAÇÃO
+============================================================
+*/
 
 const CONFIG = {
   MIN_HISTORY_SIGNAL: 30,
@@ -55,20 +69,16 @@ const CONFIG = {
   MIN_QUALITY: 55,
 
   /*
-   * ==========================================================
-   * BACKTEST NORMAL
-   * ==========================================================
-   */
+  Backtest
+  */
 
   MIN_BACKTEST_RATE: 1,
 
   MIN_RECENT_RATE: 1,
 
   /*
-   * ==========================================================
-   * BACKTEST ADAPTATIVO
-   * ==========================================================
-   */
+  Sinal forte
+  */
 
   STRONG_SIGNAL_CONSENSUS: 75,
 
@@ -87,250 +97,145 @@ const CONFIG = {
   STRONG_SIGNAL_MIN_RECENT: 1,
 
   /*
-   * Janelas
-   */
+  Janelas
+  */
 
   RECENT_WINDOW: 60,
 
   LONG_WINDOW: 180,
 
   /*
-   * Suavização estatística
-   */
+  Suavização
+  */
 
   PRIOR_RATE: 50,
 
   PRIOR_STRENGTH: 12,
 
-  MIN_TESTS_FOR_FULL_WEIGHT: 12,
-
-  MIN_TESTS_RANKING: 5,
-
   MAX_WEIGHT_FACTOR: 1.45,
 
   MIN_WEIGHT_FACTOR: 0.45,
 
-  WHITE_MAX_WEIGHT: 0.90,
-
-  AI_MAX_CONF_BONUS: 3
+  WHITE_MAX_WEIGHT: 0.90
 };
 
-/* ============================================================
-   IA
-============================================================ */
+/*
+============================================================
+ IA
+============================================================
+*/
 
 const GROQ_DEFAULT_MODEL =
+  process.env.GROQ_MODEL ||
   "openai/gpt-oss-20b";
 
-const GROQ_MODELS = [
-  "openai/gpt-oss-20b",
-  "openai/gpt-oss-120b"
-];
+const GROQ_API_KEY =
+  process.env.GROQ_API_KEY || "";
 
-const OLD_MODELS = [
-  "llama-3.1-8b-instant",
-  "llama-3.1-8b-instant-preview",
-  "llama-3.3-70b-versatile"
-];
+const XAI_API_KEY =
+  process.env.XAI_API_KEY || "";
 
-function loadConfig() {
-  let cfg = {};
+const XAI_MODEL =
+  process.env.XAI_MODEL ||
+  "grok-3-mini";
 
-  try {
-    const file =
-      path.join(
-        ROOT,
-        "config.json"
-      );
-
-    if (fs.existsSync(file)) {
-      cfg =
-        JSON.parse(
-          fs.readFileSync(
-            file,
-            "utf8"
-          )
-        ) || {};
-    }
-  } catch (err) {
-    console.log(
-      "[config] erro:",
-      err.message
-    );
-  }
-
-  let groqModel =
-    process.env.GROQ_MODEL ||
-    cfg.GROQ_MODEL ||
-    cfg.groqModel ||
-    GROQ_DEFAULT_MODEL;
-
-  if (
-    !groqModel ||
-    OLD_MODELS.includes(
-      groqModel
-    )
-  ) {
-    groqModel =
-      GROQ_DEFAULT_MODEL;
-  }
-
-  return {
-    provider:
-      String(
-        process.env.AI_PROVIDER ||
-        cfg.AI_PROVIDER ||
-        "auto"
-      ).toLowerCase(),
-
-    groqKey:
-      process.env.GROQ_API_KEY ||
-      cfg.GROQ_API_KEY ||
-      cfg.groqApiKey ||
-      "",
-
-    groqModel,
-
-    xaiKey:
-      process.env.XAI_API_KEY ||
-      cfg.XAI_API_KEY ||
-      "",
-
-    xaiModel:
-      process.env.XAI_MODEL ||
-      cfg.XAI_MODEL ||
-      "grok-3-mini"
-  };
-}
-
-const CFG = loadConfig();
-
-/* ============================================================
-   CONTROLE IA
-============================================================ */
+const AI_PROVIDER =
+  String(
+    process.env.AI_PROVIDER ||
+    "auto"
+  ).toLowerCase();
 
 const MODEL_COOLDOWN =
   new Map();
 
-function activeAI() {
-  if (
-    CFG.provider === "xai" &&
-    CFG.xaiKey
-  ) {
-    return {
-      name: "xai",
-      key: CFG.xaiKey,
-      model: CFG.xaiModel,
-      base: "https://api.x.ai/v1"
-    };
-  }
+/*
+============================================================
+ UTILITÁRIOS HTTP
+============================================================
+*/
 
-  if (CFG.groqKey) {
-    return {
-      name: "groq",
-      key: CFG.groqKey,
-      model: CFG.groqModel,
-      base:
-        "https://api.groq.com/openai/v1"
-    };
-  }
-
-  if (CFG.xaiKey) {
-    return {
-      name: "xai",
-      key: CFG.xaiKey,
-      model: CFG.xaiModel,
-      base: "https://api.x.ai/v1"
-    };
-  }
-
-  return null;
-}
-
-function isCooling(model) {
-  return (
-    Date.now() <
-    (
-      MODEL_COOLDOWN.get(
-        model
-      ) || 0
-    )
-  );
-}
-
-function setCooldown(
-  model,
-  ms
-) {
-  MODEL_COOLDOWN.set(
-    model,
-    Date.now() + ms
-  );
-}
-
-/* ============================================================
-   HTTP
-============================================================ */
-
-function fetchUrl(
+function requestUrl(
   target,
-  timeout = 10000
+  options = {}
 ) {
   return new Promise(
-    (
-      resolve,
-      reject
-    ) => {
-      let u;
+    (resolve, reject) => {
+      let url;
 
       try {
-        u =
-          new URL(target);
-      } catch (_) {
+        url = new URL(target);
+      } catch (err) {
         reject(
           new Error(
             "URL inválida"
           )
         );
-
         return;
       }
 
       const lib =
-        u.protocol === "https:"
+        url.protocol === "https:"
           ? https
           : http;
+
+      const method =
+        options.method ||
+        "GET";
+
+      const body =
+        options.body || "";
+
+      const timeout =
+        options.timeout ||
+        15000;
+
+      const headers = {
+        "User-Agent":
+          "Mozilla/5.0 RIFT-Double-Radar",
+        "Accept":
+          "application/json, text/plain, */*",
+        "Cache-Control":
+          "no-cache",
+        "Pragma":
+          "no-cache",
+        ...(options.headers || {})
+      };
+
+      if (body) {
+        headers[
+          "Content-Type"
+        ] =
+          "application/json";
+
+        headers[
+          "Content-Length"
+        ] =
+          Buffer.byteLength(body);
+      }
 
       const req =
         lib.request(
           {
             hostname:
-              u.hostname,
+              url.hostname,
 
             port:
-              u.port ||
+              url.port ||
               undefined,
 
             path:
-              u.pathname +
-              u.search,
+              url.pathname +
+              url.search,
 
-            method:
-              "GET",
+            method,
 
             timeout,
 
-            headers: {
-              Accept:
-                "application/json",
-
-              "User-Agent":
-                "Mozilla/5.0 RIFT-Double-Radar"
-            }
+            headers
           },
 
           res => {
-            let body = "";
+            let data = "";
 
             res.setEncoding(
               "utf8"
@@ -339,39 +244,24 @@ function fetchUrl(
             res.on(
               "data",
               chunk => {
-                body += chunk;
+                data += chunk;
               }
             );
 
             res.on(
               "end",
               () => {
-                if (
-                  res.statusCode >=
-                    200 &&
-                  res.statusCode <
-                    300
-                ) {
-                  resolve({
-                    status:
-                      res.statusCode,
+                resolve({
+                  status:
+                    res.statusCode ||
+                    0,
 
-                    body
-                  });
-                } else {
-                  const err =
-                    new Error(
-                      `HTTP ${res.statusCode}: ${body.slice(
-                        0,
-                        500
-                      )}`
-                    );
+                  headers:
+                    res.headers,
 
-                  err.statusCode =
-                    res.statusCode;
-
-                  reject(err);
-                }
+                  body:
+                    data
+                });
               }
             );
           }
@@ -395,155 +285,106 @@ function fetchUrl(
         }
       );
 
+      if (body) {
+        req.write(body);
+      }
+
       req.end();
     }
   );
 }
 
-function postJson(
-  target,
+async function fetchJson(
+  url,
+  timeout = 15000
+) {
+  const result =
+    await requestUrl(
+      url,
+      {
+        method: "GET",
+        timeout
+      }
+    );
+
+  if (
+    result.status < 200 ||
+    result.status >= 300
+  ) {
+    throw new Error(
+      `HTTP ${result.status}: ${result.body.slice(
+        0,
+        500
+      )}`
+    );
+  }
+
+  try {
+    return JSON.parse(
+      result.body
+    );
+  } catch (err) {
+    throw new Error(
+      "Resposta não é JSON válido"
+    );
+  }
+}
+
+async function postJson(
+  url,
   body,
   headers = {},
   timeout = 30000
 ) {
-  return new Promise(
-    (
-      resolve,
-      reject
-    ) => {
-      let u;
-
-      try {
-        u =
-          new URL(target);
-      } catch (_) {
-        reject(
-          new Error(
-            "URL inválida"
-          )
-        );
-
-        return;
+  const result =
+    await requestUrl(
+      url,
+      {
+        method: "POST",
+        timeout,
+        body:
+          JSON.stringify(
+            body
+          ),
+        headers
       }
+    );
 
-      const data =
-        JSON.stringify(body);
-
-      const lib =
-        u.protocol === "https:"
-          ? https
-          : http;
-
-      const req =
-        lib.request(
-          {
-            hostname:
-              u.hostname,
-
-            port:
-              u.port ||
-              undefined,
-
-            path:
-              u.pathname +
-              u.search,
-
-            method:
-              "POST",
-
-            timeout,
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              "Content-Length":
-                Buffer.byteLength(
-                  data
-                ),
-
-              ...headers
-            }
-          },
-
-          res => {
-            let response = "";
-
-            res.setEncoding(
-              "utf8"
-            );
-
-            res.on(
-              "data",
-              chunk => {
-                response +=
-                  chunk;
-              }
-            );
-
-            res.on(
-              "end",
-              () => {
-                if (
-                  res.statusCode >=
-                    200 &&
-                  res.statusCode <
-                    300
-                ) {
-                  resolve({
-                    status:
-                      res.statusCode,
-
-                    body:
-                      response
-                  });
-                } else {
-                  const err =
-                    new Error(
-                      `HTTP ${res.statusCode}: ${response.slice(
-                        0,
-                        700
-                      )}`
-                    );
-
-                  err.statusCode =
-                    res.statusCode;
-
-                  reject(err);
-                }
-              }
-            );
-          }
-        );
-
-      req.on(
-        "error",
-        reject
+  if (
+    result.status < 200 ||
+    result.status >= 300
+  ) {
+    const error =
+      new Error(
+        `HTTP ${result.status}: ${result.body.slice(
+          0,
+          1000
+        )}`
       );
 
-      req.on(
-        "timeout",
-        () => {
-          req.destroy();
+    error.statusCode =
+      result.status;
 
-          reject(
-            new Error(
-              "Timeout"
-            )
-          );
-        }
-      );
+    throw error;
+  }
 
-      req.write(data);
-
-      req.end();
-    }
-  );
+  try {
+    return JSON.parse(
+      result.body
+    );
+  } catch (_) {
+    return {
+      raw:
+        result.body
+    };
+  }
 }
 
-/* ============================================================
-   NORMALIZAÇÃO
-============================================================ */
+/*
+============================================================
+ NORMALIZAÇÃO
+============================================================
+*/
 
 function normalizeColor(
   value
@@ -564,6 +405,7 @@ function normalizeColor(
     s === "V" ||
     s === "RED" ||
     s === "VERMELHO" ||
+    s === "R" ||
     s === "1"
   ) {
     return "V";
@@ -582,6 +424,7 @@ function normalizeColor(
     s === "B" ||
     s === "WHITE" ||
     s === "BRANCO" ||
+    s === "W" ||
     s === "0"
   ) {
     return "B";
@@ -590,7 +433,9 @@ function normalizeColor(
   const n =
     Number(value);
 
-  if (!Number.isFinite(n)) {
+  if (
+    !Number.isFinite(n)
+  ) {
     return null;
   }
 
@@ -615,6 +460,40 @@ function normalizeColor(
   return null;
 }
 
+function extractArray(
+  json
+) {
+  if (
+    Array.isArray(json)
+  ) {
+    return json;
+  }
+
+  const candidates = [
+    json?.data,
+    json?.rounds,
+    json?.results,
+    json?.items,
+    json?.history,
+    json?.data?.rounds,
+    json?.data?.results,
+    json?.data?.items,
+    json?.data?.history
+  ];
+
+  for (
+    const item of candidates
+  ) {
+    if (
+      Array.isArray(item)
+    ) {
+      return item;
+    }
+  }
+
+  return [];
+}
+
 function normalizeItems(
   arr,
   source
@@ -626,68 +505,146 @@ function normalizeItems(
   }
 
   return arr
-    .map(item => {
-      const rawRoll =
-        item?.roll ??
-        item?.result ??
-        item?.number ??
-        item?.value;
+    .map(
+      (item, index) => {
+        if (
+          item === null ||
+          item === undefined
+        ) {
+          return null;
+        }
 
-      const roll =
-        Number(rawRoll);
+        if (
+          typeof item ===
+          "number"
+        ) {
+          const roll =
+            Number(item);
 
-      let color =
-        normalizeColor(
-          item?.color
-        );
+          const color =
+            normalizeColor(
+              roll
+            );
 
-      if (!color) {
-        color =
-          normalizeColor(
-            rawRoll
-          );
-      }
+          if (!color) {
+            return null;
+          }
 
-      if (!color) {
-        return null;
-      }
+          return {
+            roll,
+            color,
+            id:
+              `${source}-${index}`,
+            instant:
+              null,
+            source
+          };
+        }
 
-      return {
-        roll:
-          Number.isFinite(
+        const rawRoll =
+          item?.roll ??
+          item?.result ??
+          item?.number ??
+          item?.value ??
+          item?.winningNumber ??
+          item?.winning_number ??
+          item?.rouletteNumber ??
+          item?.roulette_number ??
+          item?.game?.roll ??
+          item?.game?.number ??
+          item?.outcome?.number;
+
+        let roll =
+          Number(rawRoll);
+
+        if (
+          !Number.isFinite(
             roll
           )
-            ? roll
-            : null,
+        ) {
+          roll = null;
+        }
 
-        color,
+        let color =
+          normalizeColor(
+            item?.color ??
+            item?.colour ??
+            item?.colorName ??
+            item?.color_name ??
+            item?.resultColor ??
+            item?.result_color ??
+            item?.game?.color ??
+            item?.outcome?.color
+          );
 
-        id:
-          item?.id ??
-          item?.uuid ??
-          item?.round_id ??
-          null,
+        if (!color) {
+          color =
+            normalizeColor(
+              rawRoll
+            );
+        }
 
-        instant:
-          item?.instant ??
-          item?.created_at ??
-          item?.createdAt ??
-          item?.updated_at ??
-          null,
+        if (!color) {
+          return null;
+        }
 
-        source
-      };
-    })
+        return {
+          roll,
+
+          color,
+
+          id:
+            item?.id ??
+            item?.uuid ??
+            item?.round_id ??
+            item?.roundId ??
+            item?.game_id ??
+            item?.gameId ??
+            `${source}-${index}`,
+
+          instant:
+            item?.instant ??
+            item?.timestamp ??
+            item?.created_at ??
+            item?.createdAt ??
+            item?.updated_at ??
+            item?.date ??
+            item?.time ??
+            null,
+
+          source
+        };
+      }
+    )
     .filter(Boolean);
 }
 
-/* ============================================================
-   HISTÓRICO
-============================================================ */
+/*
+============================================================
+ HISTÓRICO
+============================================================
+*/
 
 let historyCache = {
   data: null,
   time: 0
+};
+
+let sourceStatus = {
+  source:
+    null,
+
+  lastSuccess:
+    null,
+
+  lastError:
+    null,
+
+  tipminer:
+    "unknown",
+
+  blaze:
+    "unknown"
 };
 
 async function getHistory(
@@ -698,29 +655,34 @@ async function getHistory(
     historyCache.data &&
     Date.now() -
       historyCache.time <
-      1500
+      1200
   ) {
     return historyCache.data;
   }
 
+  /*
+  ----------------------------------------------------------
+  TIPMINER
+  ----------------------------------------------------------
+  */
+
   try {
-    const r =
-      await fetchUrl(
-        TIPMINER_URL
-      );
+    console.log(
+      "[history] consultando TipMiner..."
+    );
 
     const json =
-      JSON.parse(
-        r.body
+      await fetchJson(
+        TIPMINER_URL,
+        15000
       );
 
     const arr =
-      Array.isArray(json)
-        ? json
-        : json?.data ||
-          json?.rounds ||
-          json?.results ||
-          [];
+      extractArray(json);
+
+    console.log(
+      `[history] TipMiner bruto: ${arr.length}`
+    );
 
     const items =
       normalizeItems(
@@ -728,7 +690,29 @@ async function getHistory(
         "tipminer"
       );
 
-    if (items.length) {
+    console.log(
+      `[history] TipMiner normalizado: ${items.length}`
+    );
+
+    if (
+      items.length > 0
+    ) {
+      sourceStatus = {
+        ...sourceStatus,
+
+        source:
+          "tipminer",
+
+        tipminer:
+          "online",
+
+        lastSuccess:
+          new Date().toISOString(),
+
+        lastError:
+          null
+      };
+
       historyCache = {
         data: {
           source:
@@ -743,33 +727,45 @@ async function getHistory(
 
       return historyCache.data;
     }
+
+    sourceStatus.tipminer =
+      "empty";
   } catch (err) {
+    sourceStatus.tipminer =
+      "offline";
+
+    sourceStatus.lastError =
+      err.message;
+
     console.log(
-      "[history] tipminer:",
+      "[history] TipMiner:",
       err.message
     );
   }
+
+  /*
+  ----------------------------------------------------------
+  BLAZE
+  ----------------------------------------------------------
+  */
 
   for (
     const url of BLAZE_URLS
   ) {
     try {
-      const r =
-        await fetchUrl(
-          url
-        );
+      console.log(
+        "[history] tentando Blaze:",
+        url
+      );
 
       const json =
-        JSON.parse(
-          r.body
+        await fetchJson(
+          url,
+          15000
         );
 
       const arr =
-        Array.isArray(json)
-          ? json
-          : json?.data ||
-            json?.rounds ||
-            [];
+        extractArray(json);
 
       const items =
         normalizeItems(
@@ -777,7 +773,29 @@ async function getHistory(
           "blaze"
         );
 
-      if (items.length) {
+      console.log(
+        `[history] Blaze normalizado: ${items.length}`
+      );
+
+      if (
+        items.length > 0
+      ) {
+        sourceStatus = {
+          ...sourceStatus,
+
+          source:
+            "blaze",
+
+          blaze:
+            "online",
+
+          lastSuccess:
+            new Date().toISOString(),
+
+          lastError:
+            null
+        };
+
         historyCache = {
           data: {
             source:
@@ -794,32 +812,42 @@ async function getHistory(
       }
     } catch (err) {
       console.log(
-        "[history] blaze:",
+        "[history] Blaze:",
         err.message
       );
     }
   }
 
   throw new Error(
-    "Não foi possível obter o histórico."
+    "Não foi possível obter o histórico das fontes externas."
   );
 }
 
-/* ============================================================
-   ORDENAÇÃO
-============================================================ */
+/*
+============================================================
+ ORDENAÇÃO
+============================================================
+*/
 
-function itemTime(item) {
+function itemTime(
+  item
+) {
   if (!item) {
     return NaN;
   }
 
+  if (
+    item.instant === null ||
+    item.instant ===
+      undefined
+  ) {
+    return NaN;
+  }
+
   const t =
-    item.instant
-      ? new Date(
-          item.instant
-        ).getTime()
-      : NaN;
+    new Date(
+      item.instant
+    ).getTime();
 
   return Number.isFinite(t)
     ? t
@@ -835,16 +863,16 @@ function sortRoundsAscending(
     return [];
   }
 
-  const validTimes =
+  const valid =
     items.filter(
-      x =>
+      item =>
         Number.isFinite(
-          itemTime(x)
+          itemTime(item)
         )
     );
 
   if (
-    validTimes.length >= 2
+    valid.length >= 2
   ) {
     return [
       ...items
@@ -857,12 +885,8 @@ function sortRoundsAscending(
           itemTime(b);
 
         if (
-          Number.isFinite(
-            ta
-          ) &&
-          Number.isFinite(
-            tb
-          )
+          Number.isFinite(ta) &&
+          Number.isFinite(tb)
         ) {
           return ta - tb;
         }
@@ -872,36 +896,25 @@ function sortRoundsAscending(
     );
   }
 
+  /*
+  Muitas APIs já entregam
+  do mais antigo para o mais novo
+  ou vice-versa.
+
+  Quando não existe timestamp,
+  mantemos a ordem recebida.
+  */
+
   return [
     ...items
   ];
 }
 
-function getLatestRound(
-  items
-) {
-  if (
-    !Array.isArray(items) ||
-    !items.length
-  ) {
-    return null;
-  }
-
-  const sorted =
-    sortRoundsAscending(
-      items
-    );
-
-  return (
-    sorted[
-      sorted.length - 1
-    ] || null
-  );
-}
-
-/* ============================================================
-   UTILITÁRIOS
-============================================================ */
+/*
+============================================================
+ UTILITÁRIOS
+============================================================
+*/
 
 function clamp(
   value,
@@ -912,7 +925,7 @@ function clamp(
     min,
     Math.min(
       max,
-      value
+      Number(value) || 0
     )
   );
 }
@@ -922,22 +935,9 @@ function round1(
 ) {
   return (
     Math.round(
-      Number(
-        value || 0
-      ) * 10
+      Number(value || 0) *
+        10
     ) / 10
-  );
-}
-
-function round3(
-  value
-) {
-  return (
-    Math.round(
-      Number(
-        value || 0
-      ) * 1000
-    ) / 1000
   );
 }
 
@@ -961,7 +961,8 @@ function pct(
     (
       Number(value) /
       Number(total)
-    ) * 100
+    ) *
+      100
   );
 }
 
@@ -1019,10 +1020,15 @@ function density(
 function getStreak(
   colors
 ) {
-  if (!colors.length) {
+  if (
+    !colors.length
+  ) {
     return {
-      color: null,
-      length: 0
+      color:
+        null,
+
+      length:
+        0
     };
   }
 
@@ -1100,9 +1106,11 @@ function alternation(
   return total;
 }
 
-/* ============================================================
-   ESTRATÉGIAS
-============================================================ */
+/*
+============================================================
+ ESTRATÉGIAS
+============================================================
+*/
 
 function markov(
   colors
@@ -1111,8 +1119,11 @@ function markov(
     colors.length < 5
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1131,7 +1142,8 @@ function markov(
 
   for (
     let i = 0;
-    i < colors.length - 1;
+    i <
+      colors.length - 1;
     i++
   ) {
     if (
@@ -1152,8 +1164,11 @@ function markov(
 
   if (!total) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1239,8 +1254,11 @@ function streakStrategy(
     )
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1288,8 +1306,11 @@ function alternationStrategy(
     )
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1324,8 +1345,11 @@ function whiteStrategy(
     gap < 20
   ) {
     return {
-      entrada: null,
-      score: 0,
+      entrada:
+        null,
+
+      score:
+        0,
 
       dados: {
         gap
@@ -1365,8 +1389,11 @@ function frequencyStrategy(
     d.V === d.P
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1382,7 +1409,8 @@ function frequencyStrategy(
         50 +
           Math.abs(
             d.V - d.P
-          ) * 0.8
+          ) *
+            0.8
       ),
 
     dados:
@@ -1405,8 +1433,11 @@ function windowStrategy(
     )
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1417,8 +1448,11 @@ function windowStrategy(
     d.V === d.P
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1449,8 +1483,11 @@ function repeatPatternStrategy(
     colors.length < 6
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1468,8 +1505,11 @@ function repeatPatternStrategy(
     prev3.length !== 3
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1506,8 +1546,11 @@ function repeatPatternStrategy(
   }
 
   return {
-    entrada: null,
-    score: 0
+    entrada:
+      null,
+
+    score:
+      0
   };
 }
 
@@ -1518,8 +1561,11 @@ function transitionStrategy(
     colors.length < 8
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1549,7 +1595,7 @@ function transitionStrategy(
   for (
     let i = 0;
     i <
-    recent.length - 1;
+      recent.length - 1;
     i++
   ) {
     const a =
@@ -1577,18 +1623,20 @@ function transitionStrategy(
 
   if (!row) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
   const entries =
-    Object.entries(
-      row
-    ).sort(
-      (a, b) =>
-        b[1] - a[1]
-    );
+    Object.entries(row)
+      .sort(
+        (a, b) =>
+          b[1] - a[1]
+      );
 
   const total =
     entries.reduce(
@@ -1602,8 +1650,11 @@ function transitionStrategy(
 
   if (!total) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1639,9 +1690,14 @@ function pressureStrategy(
     d.P <= 35
   ) {
     return {
-      entrada: "P",
-      score: 72,
-      dados: d
+      entrada:
+        "P",
+
+      score:
+        72,
+
+      dados:
+        d
     };
   }
 
@@ -1650,15 +1706,23 @@ function pressureStrategy(
     d.V <= 35
   ) {
     return {
-      entrada: "V",
-      score: 72,
-      dados: d
+      entrada:
+        "V",
+
+      score:
+        72,
+
+      dados:
+        d
     };
   }
 
   return {
-    entrada: null,
-    score: 0
+    entrada:
+      null,
+
+    score:
+      0
   };
 }
 
@@ -1678,8 +1742,11 @@ function lastPairStrategy(
     recent.length < 2
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1723,8 +1790,11 @@ function balanceStrategy(
     recent.length < 10
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1742,8 +1812,11 @@ function balanceStrategy(
     v === p
   ) {
     return {
-      entrada: null,
-      score: 0
+      entrada:
+        null,
+
+      score:
+        0
     };
   }
 
@@ -1759,7 +1832,8 @@ function balanceStrategy(
         50 +
           Math.abs(
             v - p
-          ) * 2
+          ) *
+            2
       ),
 
     dados: {
@@ -1769,9 +1843,11 @@ function balanceStrategy(
   };
 }
 
-/* ============================================================
-   REGISTRY
-============================================================ */
+/*
+============================================================
+ REGISTRY
+============================================================
+*/
 
 const STRATEGY_LABELS = {
   markov:
@@ -1818,20 +1894,47 @@ const STRATEGY_LABELS = {
 };
 
 const BASE_WEIGHTS = {
-  markov: 1.25,
-  density: 1.00,
-  streak: 0.90,
-  alternation: 0.90,
-  white: 0.55,
-  frequency: 1.00,
-  window5: 0.90,
-  window10: 1.00,
-  window20: 1.00,
-  repeat: 0.80,
-  transition: 1.15,
-  pressure: 1.00,
-  lastPair: 0.75,
-  balance: 0.80
+  markov:
+    1.25,
+
+  density:
+    1.00,
+
+  streak:
+    0.90,
+
+  alternation:
+    0.90,
+
+  white:
+    0.55,
+
+  frequency:
+    1.00,
+
+  window5:
+    0.90,
+
+  window10:
+    1.00,
+
+  window20:
+    1.00,
+
+  repeat:
+    0.80,
+
+  transition:
+    1.15,
+
+  pressure:
+    1.00,
+
+  lastPair:
+    0.75,
+
+  balance:
+    0.80
 };
 
 function getStrategies(
@@ -1911,9 +2014,11 @@ function getStrategies(
   };
 }
 
-/* ============================================================
-   ESTATÍSTICAS
-============================================================ */
+/*
+============================================================
+ BACKTEST
+============================================================
+*/
 
 function emptyStats(
   name
@@ -1926,46 +2031,77 @@ function emptyStats(
       STRATEGY_LABELS[name] ||
       name,
 
-    testes: 0,
-    acertos: 0,
-    erros: 0,
-    taxa: 0,
+    testes:
+      0,
 
-    testesRecentes: 0,
-    acertosRecentes: 0,
-    recenteTaxa: 0,
+    acertos:
+      0,
 
-    taxaAjustada: 50,
-    confiabilidade: 0,
-    peso: 0,
-    fator: 1
+    erros:
+      0,
+
+    taxa:
+      0,
+
+    testesRecentes:
+      0,
+
+    acertosRecentes:
+      0,
+
+    recenteTaxa:
+      0,
+
+    taxaAjustada:
+      50,
+
+    confiabilidade:
+      0,
+
+    peso:
+      0,
+
+    fator:
+      1
   };
 }
 
 function smoothedRate(
   wins,
-  tests,
-  priorRate =
-    CONFIG.PRIOR_RATE,
-  priorStrength =
-    CONFIG.PRIOR_STRENGTH
+  tests
 ) {
   return (
     (
       Number(wins || 0) +
-      priorRate *
-        priorStrength
+      CONFIG.PRIOR_RATE *
+        CONFIG.PRIOR_STRENGTH
     ) /
     (
       Number(tests || 0) +
-      priorStrength
+      CONFIG.PRIOR_STRENGTH
     )
   );
 }
 
-/* ============================================================
-   BACKTEST
-============================================================ */
+function runStrategy(
+  name,
+  colors
+) {
+  const strategies =
+    getStrategies(
+      colors
+    );
+
+  return (
+    strategies[name] || {
+      entrada:
+        null,
+
+      score:
+        0
+    }
+  );
+}
 
 function backtest(
   colors
@@ -1990,31 +2126,19 @@ function backtest(
     return {
       stats,
       ranking: [],
-      melhor: null,
-      amostra: 0,
-      janela: 0,
-      adaptive: true,
-      taxa: 0,
-      recentRate: 0,
-      acertos: 0,
-      erros: 0,
-      testes: 0
+      melhor:
+        null,
+      amostra:
+        0,
+      adaptive:
+        true
     };
   }
 
-  const end =
-    colors.length;
-
-  const start =
-    Math.max(
-      25,
-      end -
-        CONFIG.LONG_WINDOW
-    );
-
   for (
-    let i = start;
-    i < end;
+    let i = 20;
+    i <
+      colors.length;
     i++
   ) {
     const history =
@@ -2034,40 +2158,50 @@ function backtest(
     for (
       const name of names
     ) {
-      const prediction =
-        strategies[name]
-          ?.entrada;
+      const result =
+        strategies[name];
 
-      if (!prediction) {
+      if (
+        !result ||
+        ![
+          "V",
+          "P",
+          "B"
+        ].includes(
+          result.entrada
+        )
+      ) {
         continue;
       }
 
-      const s =
+      const stat =
         stats[name];
 
-      s.testes++;
+      stat.testes++;
 
       if (
-        prediction ===
+        result.entrada ===
         actual
       ) {
-        s.acertos++;
+        stat.acertos++;
       } else {
-        s.erros++;
+        stat.erros++;
       }
     }
   }
 
   const recentStart =
     Math.max(
-      start,
-      end -
+      20,
+      colors.length -
         CONFIG.RECENT_WINDOW
     );
 
   for (
-    let i = recentStart;
-    i < end;
+    let i =
+      recentStart;
+    i <
+      colors.length;
     i++
   ) {
     const history =
@@ -2087,124 +2221,97 @@ function backtest(
     for (
       const name of names
     ) {
-      const prediction =
-        strategies[name]
-          ?.entrada;
+      const result =
+        strategies[name];
 
-      if (!prediction) {
+      if (
+        !result ||
+        ![
+          "V",
+          "P",
+          "B"
+        ].includes(
+          result.entrada
+        )
+      ) {
         continue;
       }
 
-      const s =
+      const stat =
         stats[name];
 
-      s.testesRecentes++;
+      stat.testesRecentes++;
 
       if (
-        prediction ===
+        result.entrada ===
         actual
       ) {
-        s.acertosRecentes++;
+        stat.acertosRecentes++;
       }
     }
   }
 
-  let totalTests = 0;
-  let totalWins = 0;
-
-  let recentTests = 0;
-  let recentWins = 0;
+  const ranking = [];
 
   for (
-    const s of Object.values(
-      stats
-    )
+    const name of names
   ) {
-    s.taxa =
-      s.testes > 0
-        ? round1(
-            (
-              s.acertos /
-              s.testes
-            ) * 100
+    const stat =
+      stats[name];
+
+    stat.taxa =
+      stat.testes
+        ? pct(
+            stat.acertos,
+            stat.testes
           )
         : 0;
 
-    s.recenteTaxa =
-      s.testesRecentes > 0
-        ? round1(
-            (
-              s.acertosRecentes /
-              s.testesRecentes
-            ) * 100
+    stat.recenteTaxa =
+      stat.testesRecentes
+        ? pct(
+            stat.acertosRecentes,
+            stat.testesRecentes
           )
-        : s.taxa;
+        : 0;
 
-    s.taxaAjustada =
+    stat.taxaAjustada =
       round1(
         smoothedRate(
-          s.acertos,
-          s.testes
+          stat.acertos,
+          stat.testes
         )
       );
 
-    const recentAdjusted =
-      s.testesRecentes > 0
-        ? smoothedRate(
-            s.acertosRecentes,
-            s.testesRecentes
-          )
-        : s.taxaAjustada;
-
-    const recentInfluence =
+    const confidenceSample =
       clamp(
-        s.testesRecentes /
-          30,
+        stat.testes /
+          40,
         0,
         1
       );
 
-    const adjusted =
-      s.taxaAjustada *
-        (
-          1 -
-          0.35 *
-          recentInfluence
-        ) +
-      recentAdjusted *
-        (
-          0.35 *
-          recentInfluence
-        );
-
-    s.confiabilidade =
+    stat.confiabilidade =
       round1(
-        clamp(
-          adjusted,
-          0,
-          100
-        )
+        stat.taxaAjustada *
+          confidenceSample +
+          50 *
+            (1 -
+              confidenceSample)
       );
 
-    const evidence =
-      clamp(
-        s.testes /
-          CONFIG.MIN_TESTS_FOR_FULL_WEIGHT,
-        0,
-        1
-      );
-
-    const performanceDelta =
-      (
-        s.confiabilidade -
-        50
-      ) / 50;
+    const base =
+      BASE_WEIGHTS[
+        name
+      ] || 1;
 
     let factor =
       1 +
-      performanceDelta *
-        0.55 *
-        evidence;
+      (
+        stat.taxaAjustada -
+        50
+      ) /
+        100;
 
     factor =
       clamp(
@@ -2213,63 +2320,65 @@ function backtest(
         CONFIG.MAX_WEIGHT_FACTOR
       );
 
-    s.fator =
-      round3(
+    if (
+      name === "white"
+    ) {
+      factor =
+        Math.min(
+          factor,
+          CONFIG.WHITE_MAX_WEIGHT
+        );
+    }
+
+    stat.fator =
+      round1(
         factor
       );
 
-    s.peso =
+    stat.peso =
       round3(
-        factor
+        base *
+          factor
       );
 
-    totalTests +=
-      s.testes;
+    ranking.push({
+      estrategia:
+        name,
 
-    totalWins +=
-      s.acertos;
+      nome:
+        stat.nome,
 
-    recentTests +=
-      s.testesRecentes;
+      taxa:
+        stat.taxa,
 
-    recentWins +=
-      s.acertosRecentes;
+      recenteTaxa:
+        stat.recenteTaxa,
+
+      taxaAjustada:
+        stat.taxaAjustada,
+
+      confiabilidade:
+        stat.confiabilidade,
+
+      peso:
+        stat.peso,
+
+      testes:
+        stat.testes
+    });
   }
 
-  const ranking =
-    Object.values(
-      stats
-    )
-      .filter(
-        s =>
-          s.testes >=
-          CONFIG.MIN_TESTS_RANKING
+  ranking.sort(
+    (a, b) =>
+      (
+        b.taxaAjustada +
+        b.recenteTaxa
+      ) -
+      (
+        a.taxaAjustada +
+        a.recenteTaxa
       )
-      .sort(
-        (a, b) =>
-          b.confiabilidade -
-          a.confiabilidade
-      );
-
-  const taxa =
-    totalTests > 0
-      ? round1(
-          (
-            totalWins /
-            totalTests
-          ) * 100
-        )
-      : 0;
-
-  const recentRate =
-    recentTests > 0
-      ? round1(
-          (
-            recentWins /
-            recentTests
-          ) * 100
-        )
-      : taxa;
+  );
 
   return {
     stats,
@@ -2281,1718 +2390,887 @@ function backtest(
       null,
 
     amostra:
-      end - start,
+      colors.length,
 
-    janela:
-      end - start,
-
-    adaptive: true,
-
-    taxa,
-
-    recentRate,
-
-    acertos:
-      totalWins,
-
-    erros:
-      totalTests -
-      totalWins,
-
-    testes:
-      totalTests
+    adaptive:
+      true
   };
 }
 
-/* ============================================================
-   REGIME
-============================================================ */
+/*
+============================================================
+ REGIME
+============================================================
+*/
 
-function getRegime(
+function detectRegime(
   colors
 ) {
-  const d10 =
-    density(
-      colors.slice(-10)
-    );
+  if (
+    colors.length < 10
+  ) {
+    return {
+      regime:
+        "NEUTRO",
 
-  const d20 =
-    density(
-      colors.slice(-20)
-    );
+      descricao:
+        "Amostra insuficiente"
+    };
+  }
 
   const streak =
     getStreak(
       colors
     );
 
-  const gap =
+  const recent =
+    colors.slice(-15);
+
+  const d =
+    density(
+      recent
+    );
+
+  const whiteGap =
     getWhiteGap(
       colors
     );
 
   const alt =
     alternation(
-      colors.slice(-10)
+      recent
     );
-
-  let regime =
-    "NEUTRO";
-
-  let score = 50;
-
-  let reason =
-    "Histórico sem padrão dominante.";
 
   if (
     streak.length >= 4 &&
-    [
-      "V",
-      "P"
-    ].includes(
-      streak.color
-    )
+    streak.color === "V"
   ) {
-    regime =
-      "STREAK";
+    return {
+      regime:
+        "STREAK",
 
-    score =
-      Math.min(
-        95,
-        60 +
-          streak.length * 5
-      );
+      direcao:
+        "V",
 
-    reason =
-      `Sequência ${streak.color} x${streak.length}.`;
-  } else if (
-    d10.V >= 60 &&
-    d20.V >= 55
+      descricao:
+        "Sequência prolongada de vermelho"
+    };
+  }
+
+  if (
+    streak.length >= 4 &&
+    streak.color === "P"
   ) {
-    regime =
-      "PRESSAO_V";
+    return {
+      regime:
+        "STREAK",
 
-    score =
-      Math.round(
-        d10.V
-      );
+      direcao:
+        "P",
 
-    reason =
-      "Pressão recente de vermelho.";
-  } else if (
-    d10.P >= 60 &&
-    d20.P >= 55
+      descricao:
+        "Sequência prolongada de preto"
+    };
+  }
+
+  if (
+    d.V >= 65
   ) {
-    regime =
-      "PRESSAO_P";
+    return {
+      regime:
+        "PRESSAO_V",
 
-    score =
-      Math.round(
-        d10.P
-      );
+      direcao:
+        "V",
 
-    reason =
-      "Pressão recente de preto.";
-  } else if (
-    alt >= 6
+      descricao:
+        "Pressão estatística recente para vermelho"
+    };
+  }
+
+  if (
+    d.P >= 65
   ) {
-    regime =
-      "ALTERNANCIA";
+    return {
+      regime:
+        "PRESSAO_P",
 
-    score =
-      Math.min(
-        90,
-        55 +
-          alt * 5
-      );
+      direcao:
+        "P",
 
-    reason =
-      "Alternância elevada.";
-  } else if (
-    gap >= 30
+      descricao:
+        "Pressão estatística recente para preto"
+    };
+  }
+
+  if (
+    whiteGap >= 20
   ) {
-    regime =
-      "GAP_BRANCO";
+    return {
+      regime:
+        "GAP_BRANCO",
 
-    score =
-      Math.min(
-        90,
-        55 +
-          Math.floor(
-            gap / 5
-          )
-      );
+      direcao:
+        "B",
 
-    reason =
-      `Branco ausente há ${gap} rodadas.`;
+      descricao:
+        "Longo intervalo desde o último branco"
+    };
+  }
+
+  if (
+    alt >= 7
+  ) {
+    return {
+      regime:
+        "ALTERNANCIA",
+
+      descricao:
+        "Alta alternância recente"
+    };
   }
 
   return {
-    regime,
-    score,
-    reason,
-    streak,
-    gapBranco:
-      gap,
-    alternancia:
-      alt,
-    density10:
-      d10,
-    density20:
-      d20
+    regime:
+      "NEUTRO",
+
+    descricao:
+      "Sem regime dominante"
   };
 }
 
-/* ============================================================
-   MULTIPLICADOR
-============================================================ */
+/*
+============================================================
+ ESTABILIDADE
+============================================================
+*/
 
-function regimeMultiplier(
-  name,
-  regime
+function calculateStability(
+  colors,
+  entrada
 ) {
-  const multipliers = {
-    STREAK: {
-      streak: 1.15,
-      lastPair: 1.06,
-      markov: 1.06,
-      alternation: 0.82
-    },
+  if (
+    !entrada
+  ) {
+    return 0;
+  }
 
-    PRESSAO_V: {
-      pressure: 1.12,
-      frequency: 1.08,
-      density: 1.04,
-      balance: 1.04,
-      alternation: 0.90
-    },
+  const windows = [
+    5,
+    10,
+    20,
+    40
+  ];
 
-    PRESSAO_P: {
-      pressure: 1.12,
-      frequency: 1.08,
-      density: 1.04,
-      balance: 1.04,
-      alternation: 0.90
-    },
+  let total = 0;
+  let agree = 0;
 
-    ALTERNANCIA: {
-      alternation: 1.18,
-      lastPair: 1.08,
-      markov: 1.04,
-      streak: 0.78,
-      pressure: 0.88
-    },
+  for (
+    const size of windows
+  ) {
+    const sample =
+      colors.slice(
+        -size
+      );
 
-    GAP_BRANCO: {
-      white: 1.08
-    },
+    if (
+      sample.length <
+      Math.min(
+        5,
+        size
+      )
+    ) {
+      continue;
+    }
 
-    NEUTRO: {}
-  };
+    const d =
+      density(
+        sample
+      );
 
-  return (
-    multipliers[
-      regime
-    ]?.[name] ||
-    1
+    let suggestion =
+      null;
+
+    if (
+      entrada === "B"
+    ) {
+      suggestion =
+        d.B >= 10
+          ? "B"
+          : null;
+    } else {
+      suggestion =
+        d.V >= d.P
+          ? "V"
+          : "P";
+    }
+
+    total++;
+
+    if (
+      suggestion ===
+      entrada
+    ) {
+      agree++;
+    }
+  }
+
+  if (!total) {
+    return 0;
+  }
+
+  return pct(
+    agree,
+    total
   );
 }
 
-/* ============================================================
-   PESOS
-============================================================ */
-
-function adaptiveWeight(
-  name,
-  bt,
-  regime
-) {
-  const base =
-    Number(
-      BASE_WEIGHTS[name]
-    ) || 1;
-
-  const stat =
-    bt?.stats?.[name];
-
-  const performanceFactor =
-    Number(
-      stat?.fator
-    ) || 1;
-
-  const regimeFactor =
-    regime
-      ? regimeMultiplier(
-          name,
-          regime.regime
-        )
-      : 1;
-
-  const cappedRegime =
-    clamp(
-      regimeFactor,
-      0.75,
-      1.20
-    );
-
-  let weight =
-    base *
-    performanceFactor *
-    cappedRegime;
-
-  if (
-    name === "white"
-  ) {
-    weight =
-      Math.min(
-        weight,
-        CONFIG.WHITE_MAX_WEIGHT
-      );
-  }
-
-  return weight;
-}
-
-/* ============================================================
-   CONSENSO
-============================================================ */
+/*
+============================================================
+ CONSENSO
+============================================================
+*/
 
 function calculateConsensus(
-  colors,
-  bt = null,
-  regime = null
+  strategies,
+  back
 ) {
-  const strategies =
-    getStrategies(
-      colors
-    );
-
   const votes = {
     V: 0,
     P: 0,
     B: 0
   };
 
-  const weighted = {
+  const rawVotes = {
     V: 0,
     P: 0,
     B: 0
   };
 
-  const active = [];
-  const details = {};
+  let active = 0;
 
   for (
-    const [
-      name,
-      result
-    ] of Object.entries(
+    const name of Object.keys(
       strategies
     )
   ) {
+    const result =
+      strategies[name];
+
     if (
       !result ||
-      !result.entrada
-    ) {
-      continue;
-    }
-
-    if (
-      votes[
+      ![
+        "V",
+        "P",
+        "B"
+      ].includes(
         result.entrada
-      ] === undefined
+      )
     ) {
       continue;
     }
 
-    const rawScore =
-      Number(
-        result.score
+    const stat =
+      back.stats[name];
+
+    const weight =
+      stat?.peso ||
+      BASE_WEIGHTS[name] ||
+      1;
+
+    const score =
+      clamp(
+        result.score ||
+          50,
+        0,
+        100
       );
 
-    if (
-      !Number.isFinite(
-        rawScore
-      ) ||
-      rawScore <= 0
-    ) {
-      continue;
-    }
-
-    const baseWeight =
-      Number(
-        BASE_WEIGHTS[name]
-      ) || 1;
+    const confidence =
+      0.5 +
+      score / 200;
 
     const finalWeight =
-      adaptiveWeight(
-        name,
-        bt,
-        regime
-      );
-
-    const contribution =
-      rawScore *
-      finalWeight;
+      weight *
+      confidence;
 
     votes[
       result.entrada
+    ] +=
+      finalWeight;
+
+    rawVotes[
+      result.entrada
     ]++;
 
-    weighted[
-      result.entrada
-    ] +=
-      contribution;
-
-    active.push(
-      name
-    );
-
-    const stat =
-      bt?.stats?.[name];
-
-    details[name] = {
-      id:
-        name,
-
-      nome:
-        STRATEGY_LABELS[
-          name
-        ] || name,
-
-      entrada:
-        result.entrada,
-
-      score:
-        rawScore,
-
-      baseWeight:
-        round3(
-          baseWeight
-        ),
-
-      adaptiveFactor:
-        round3(
-          stat?.fator ||
-          1
-        ),
-
-      historicalRate:
-        round1(
-          stat?.taxa ||
-          0
-        ),
-
-      recentRate:
-        round1(
-          stat?.recenteTaxa ||
-          0
-        ),
-
-      tests:
-        Number(
-          stat?.testes
-        ) || 0,
-
-      recentTests:
-        Number(
-          stat?.testesRecentes
-        ) || 0,
-
-      regimeWeight:
-        round3(
-          regime
-            ? regimeMultiplier(
-                name,
-                regime.regime
-              )
-            : 1
-        ),
-
-      finalWeight:
-        round3(
-          finalWeight
-        ),
-
-      peso:
-        round3(
-          finalWeight
-        ),
-
-      contribution:
-        round1(
-          contribution
-        )
-    };
+    active++;
   }
 
-  const ordered =
+  const sorted =
     Object.entries(
-      weighted
+      votes
     ).sort(
       (a, b) =>
         b[1] - a[1]
     );
 
-  const entrada =
-    ordered[0]?.[0] ||
-    null;
-
-  const winnerWeight =
-    Number(
-      ordered[0]?.[1] ||
+  const winner =
+    sorted[0] || [
+      null,
       0
-    );
+    ];
 
-  const secondWeight =
-    Number(
-      ordered[1]?.[1] ||
+  const second =
+    sorted[1] || [
+      null,
       0
-    );
+    ];
 
-  const totalWeight =
+  const total =
     Object.values(
-      weighted
+      votes
     ).reduce(
       (
         sum,
         value
       ) =>
-        sum +
-        Number(
-          value || 0
-        ),
+        sum + value,
       0
     );
 
-  const totalVotes =
-    active.length;
-
-  const voteCount =
-    entrada
-      ? votes[entrada]
+  const consensus =
+    total
+      ? pct(
+          winner[1],
+          total
+        )
       : 0;
 
-  const consensusPct =
-    totalWeight > 0
-      ? round1(
-          (
-            winnerWeight /
-            totalWeight
-          ) * 100
+  const margin =
+    total
+      ? pct(
+          winner[1] -
+            second[1],
+          total
         )
       : 0;
 
   const votePct =
-    totalVotes > 0
-      ? round1(
-          (
-            voteCount /
-            totalVotes
-          ) * 100
+    active
+      ? pct(
+          rawVotes[
+            winner[0]
+          ],
+          active
         )
       : 0;
-
-  const marginPct =
-    totalWeight > 0
-      ? round1(
-          (
-            (
-              winnerWeight -
-              secondWeight
-            ) / totalWeight
-          ) * 100
-        )
-      : 0;
-
-  const edge =
-    winnerWeight -
-    secondWeight;
-
-  let confidence = 30;
-
-  confidence +=
-    votePct *
-    0.18;
-
-  confidence +=
-    consensusPct *
-    0.30;
-
-  confidence +=
-    clamp(
-      marginPct *
-        0.20,
-      0,
-      10
-    );
-
-  if (
-    bt?.melhor?.taxa >=
-    55
-  ) {
-    confidence += 4;
-  }
-
-  if (
-    bt?.recentRate >=
-    52
-  ) {
-    confidence += 3;
-  }
-
-  if (
-    regime?.score >=
-    70
-  ) {
-    confidence += 3;
-  }
-
-  if (
-    colors.length < 30
-  ) {
-    confidence -= 10;
-  }
-
-  confidence =
-    Math.round(
-      clamp(
-        confidence,
-        0,
-        90
-      )
-    );
-
-  if (
-    totalVotes >= 4 &&
-    votePct < 50
-  ) {
-    confidence =
-      Math.min(
-        confidence,
-        53
-      );
-  }
 
   return {
-    strategies,
-    details,
-    votes,
-    weighted,
-    active,
+    entrada:
+      winner[0],
 
-    activeCount:
-      totalVotes,
+    consenso:
+      consensus,
 
-    entrada,
-
-    voteCount,
-
-    totalVotes,
+    margin,
 
     votePct,
 
-    edge,
+    votos:
+      rawVotes,
 
-    marginPct,
+    pesos:
+      votes,
 
-    consensusPct,
+    active,
 
-    consensusPercent:
-      consensusPct,
+    votesWinner:
+      rawVotes[
+        winner[0]
+      ] || 0
+  };
+}
 
-    consensus:
-      consensusPct,
+/*
+============================================================
+ QUALIDADE
+============================================================
+*/
 
-    confidence,
+function calculateQuality(
+  consensus,
+  stability,
+  back,
+  entrada
+) {
+  const statList =
+    Object.values(
+      back.stats
+    );
 
-    adaptiveWeights:
-      Object.fromEntries(
-        Object.entries(
-          details
-        ).map(
-          ([
-            name,
-            d
-          ]) => [
-            name,
-            d.finalWeight
-          ]
+  const relevant =
+    statList.filter(
+      stat =>
+        stat.testes >= 5
+    );
+
+  let backRate = 0;
+  let recentRate = 0;
+
+  if (
+    relevant.length
+  ) {
+    backRate =
+      relevant.reduce(
+        (
+          sum,
+          stat
+        ) =>
+          sum +
+          stat.taxaAjustada,
+        0
+      ) /
+      relevant.length;
+
+    recentRate =
+      relevant.reduce(
+        (
+          sum,
+          stat
+        ) =>
+          sum +
+          stat.recenteTaxa,
+        0
+      ) /
+      relevant.length;
+  }
+
+  let quality =
+    (
+      consensus *
+        0.35 +
+      stability *
+        0.20 +
+      backRate *
+        0.25 +
+      recentRate *
+        0.20
+    );
+
+  if (
+    entrada === "B"
+  ) {
+    quality -= 5;
+  }
+
+  return {
+    quality:
+      round1(
+        clamp(
+          quality,
+          0,
+          100
         )
+      ),
+
+    backRate:
+      round1(
+        backRate
+      ),
+
+    recentRate:
+      round1(
+        recentRate
       )
   };
 }
 
-/* ============================================================
-   ESTABILIDADE
-============================================================ */
+/*
+============================================================
+ ANÁLISE PRINCIPAL
+============================================================
+*/
 
-function consensusWinnerForWindow(
-  colors,
-  size,
-  bt,
-  regime
+function analyzeColors(
+  colors
 ) {
-  if (
-    colors.length < size
-  ) {
-    return null;
-  }
-
-  const subset =
-    colors.slice(-size);
-
-  const c =
-    calculateConsensus(
-      subset,
-      bt,
-      regime
+  const clean =
+    colors.filter(
+      x =>
+        x === "V" ||
+        x === "P" ||
+        x === "B"
     );
 
-  if (!c.entrada) {
-    return null;
-  }
-
-  return c.entrada;
-}
-
-function calculateStability(
-  colors,
-  currentWinner,
-  bt,
-  regime
-) {
-  if (!currentWinner) {
+  if (
+    clean.length === 0
+  ) {
     return {
-      pct: 0,
-      matches: 0,
-      total: 0,
-      windows: {}
+      signal:
+        "NO_SIGNAL",
+
+      entrada:
+        null,
+
+      canEnter:
+        false,
+
+      message:
+        "Sem histórico."
     };
   }
 
-  const sizes =
-    [
-      5,
-      10,
-      20,
-      40
-    ];
-
-  const windows = {};
-
-  let matches = 0;
-  let total = 0;
-
-  for (
-    const size of sizes
-  ) {
-    if (
-      colors.length < size
-    ) {
-      continue;
-    }
-
-    const winner =
-      consensusWinnerForWindow(
-        colors,
-        size,
-        bt,
-        regime
-      );
-
-    windows[size] =
-      winner;
-
-    if (winner) {
-      total++;
-
-      if (
-        winner ===
-        currentWinner
-      ) {
-        matches++;
-      }
-    }
-  }
-
-  return {
-    pct:
-      total > 0
-        ? round1(
-            (
-              matches /
-              total
-            ) * 100
-          )
-        : 0,
-
-    matches,
-
-    total,
-
-    windows
-  };
-}
-
-/* ============================================================
-   QUALIDADE
-============================================================ */
-
-function quality(
-  consensus,
-  regime,
-  bt,
-  stability,
-  colors
-) {
-  let q = 30;
-
-  const cp =
-    Number(
-      consensus?.consensusPct
-    ) || 0;
-
-  const margin =
-    Number(
-      consensus?.marginPct
-    ) || 0;
-
-  const stabilityPct =
-    Number(
-      stability?.pct
-    ) || 0;
-
-  q +=
-    Math.min(
-      24,
-      cp * 0.24
+  const strategies =
+    getStrategies(
+      clean
     );
 
-  q +=
-    Math.min(
-      15,
-      margin * 0.55
-    );
-
-  q +=
-    Math.min(
-      15,
-      stabilityPct * 0.15
-    );
-
-  if (
-    bt?.taxa >= 52
-  ) {
-    q += 3;
-  }
-
-  if (
-    bt?.recentRate >= 52
-  ) {
-    q += 4;
-  }
-
-  if (
-    regime?.score >= 70
-  ) {
-    q += 4;
-  }
-
-  if (
-    colors.length < 30
-  ) {
-    q -= 10;
-  }
-
-  return Math.round(
-    clamp(
-      q,
-      0,
-      100
-    )
-  );
-}
-
-/* ============================================================
-   DIAGNÓSTICO DE BLOQUEIOS
-============================================================ */
-
-function getBlockerLabels() {
-  return {
-    HISTORICO:
-      "Histórico insuficiente",
-
-    ESTRATEGIAS:
-      "Poucas estratégias ativas",
-
-    VOTOS:
-      "Poucos votos",
-
-    CONSENSO:
-      "Consenso abaixo do mínimo",
-
-    VOTOS_PCT:
-      "Percentual de votos abaixo do mínimo",
-
-    MARGEM:
-      "Margem abaixo do mínimo",
-
-    ESTABILIDADE:
-      "Estabilidade abaixo do mínimo",
-
-    BACKTEST:
-      "Backtest histórico abaixo do mínimo",
-
-    BACKTEST_RECENTE:
-      "Backtest recente abaixo do mínimo",
-
-    QUALIDADE:
-      "Qualidade abaixo do mínimo",
-
-    ESTABILIDADE_0:
-      "Estabilidade 0% bloqueada",
-
-    BRANCO:
-      "Proteção do Branco",
-
-    EMPATE:
-      "Empate entre votos"
-  };
-}
-
-function describeBlockers(
-  blockers
-) {
-  const labels =
-    getBlockerLabels();
-
-  return blockers.map(
-    code =>
-      labels[code] ||
-      code
-  );
-}
-
-/* ============================================================
-   ANÁLISE LOCAL
-============================================================ */
-
-function localAnalysis(
-  colors,
-  rolls
-) {
-  const regime =
-    getRegime(
-      colors
-    );
-
-  const bt =
+  const back =
     backtest(
-      colors
+      clean
     );
 
-  const c =
+  const consensus =
     calculateConsensus(
-      colors,
-      bt,
-      regime
+      strategies,
+      back
+    );
+
+  const regime =
+    detectRegime(
+      clean
     );
 
   const stability =
     calculateStability(
-      colors,
-      c.entrada,
-      bt,
-      regime
+      clean,
+      consensus.entrada
     );
 
-  const q =
-    quality(
-      c,
-      regime,
-      bt,
+  const quality =
+    calculateQuality(
+      consensus.consenso,
       stability,
-      colors
+      back,
+      consensus.entrada
     );
-
-  const hasEnoughData =
-    colors.length >=
-    CONFIG.MIN_HISTORY_SIGNAL;
-
-  const enoughStrategies =
-    c.activeCount >=
-    CONFIG.MIN_ACTIVE_STRATEGIES;
-
-  const enoughVotes =
-    c.voteCount >=
-    CONFIG.MIN_VOTES;
-
-  const enoughConsensus =
-    c.consensusPct >=
-      CONFIG.MIN_CONSENSUS_PCT &&
-    c.votePct >=
-      CONFIG.MIN_VOTE_PCT;
-
-  const consensusPctHealthy =
-    c.consensusPct >=
-    CONFIG.MIN_CONSENSUS_PCT;
-
-  const votePctHealthy =
-    c.votePct >=
-    CONFIG.MIN_VOTE_PCT;
-
-  const enoughMargin =
-    c.marginPct >=
-    CONFIG.MIN_MARGIN_PCT;
-
-  const stable =
-    stability.pct >=
-    CONFIG.MIN_STABILITY_PCT;
-
-  const bestRate =
-    Number(
-      bt?.melhor?.taxa
-    ) || 0;
-
-  const recentRate =
-    Number(
-      bt?.recentRate
-    ) || 0;
-
-  /* ==========================================================
-     BACKTEST NORMAL
-  ========================================================== */
-
-  const backtestHealthyBase =
-    !bt?.melhor ||
-    bestRate >=
-      CONFIG.MIN_BACKTEST_RATE;
-
-  const recentHealthyBase =
-    !bt?.melhor ||
-    recentRate >=
-      CONFIG.MIN_RECENT_RATE;
-
-  /* ==========================================================
-     SINAL FORTE ADAPTATIVO
-  ========================================================== */
-
-  const strongSetup =
-    hasEnoughData &&
-    enoughStrategies &&
-    enoughVotes &&
-    c.voteCount >=
-      CONFIG.STRONG_SIGNAL_MIN_VOTES &&
-    c.consensusPct >=
-      CONFIG.STRONG_SIGNAL_CONSENSUS &&
-    c.votePct >=
-      CONFIG.STRONG_SIGNAL_VOTE_PCT &&
-    c.marginPct >=
-      CONFIG.STRONG_SIGNAL_MARGIN &&
-    stability.pct >=
-      CONFIG.STRONG_SIGNAL_STABILITY &&
-    q >=
-      CONFIG.STRONG_SIGNAL_QUALITY &&
-    bestRate >=
-      CONFIG.STRONG_SIGNAL_MIN_BACKTEST &&
-    recentRate >=
-      CONFIG.STRONG_SIGNAL_MIN_RECENT;
-
-  /* ==========================================================
-     BACKTEST FINAL
-  ========================================================== */
-
-  const backtestHealthy =
-    backtestHealthyBase ||
-    strongSetup;
-
-  const recentHealthy =
-    recentHealthyBase ||
-    strongSetup;
-
-  const adaptiveBacktestOverride =
-    Boolean(
-      strongSetup &&
-      (
-        !backtestHealthyBase ||
-        !recentHealthyBase
-      )
-    );
-
-  /* ==========================================================
-     DIAGNÓSTICO
-  ========================================================== */
 
   const blockers = [];
 
-  const warnings = [];
-
-  if (!hasEnoughData) {
+  if (
+    clean.length <
+    CONFIG.MIN_HISTORY_SIGNAL
+  ) {
     blockers.push(
-      "HISTORICO"
-    );
-  }
-
-  if (!enoughStrategies) {
-    blockers.push(
-      "ESTRATEGIAS"
-    );
-  }
-
-  if (!enoughVotes) {
-    blockers.push(
-      "VOTOS"
-    );
-  }
-
-  if (!consensusPctHealthy) {
-    blockers.push(
-      "CONSENSO"
-    );
-  }
-
-  if (!votePctHealthy) {
-    blockers.push(
-      "VOTOS_PCT"
-    );
-  }
-
-  if (!enoughMargin) {
-    blockers.push(
-      "MARGEM"
-    );
-  }
-
-  if (!stable) {
-    blockers.push(
-      "ESTABILIDADE"
-    );
-  }
-
-  if (!backtestHealthy) {
-    blockers.push(
-      "BACKTEST"
-    );
-  }
-
-  if (!recentHealthy) {
-    blockers.push(
-      "BACKTEST_RECENTE"
+      `Histórico abaixo de ${CONFIG.MIN_HISTORY_SIGNAL} rodadas`
     );
   }
 
   if (
-    q <
+    consensus.active <
+    CONFIG.MIN_ACTIVE_STRATEGIES
+  ) {
+    blockers.push(
+      "Poucas estratégias ativas"
+    );
+  }
+
+  if (
+    consensus.votesWinner <
+    CONFIG.MIN_VOTES
+  ) {
+    blockers.push(
+      "Poucos votos"
+    );
+  }
+
+  if (
+    consensus.consenso <
+    CONFIG.MIN_CONSENSUS_PCT
+  ) {
+    blockers.push(
+      "Consenso abaixo do mínimo"
+    );
+  }
+
+  if (
+    consensus.votePct <
+    CONFIG.MIN_VOTE_PCT
+  ) {
+    blockers.push(
+      "Percentual de votos abaixo do mínimo"
+    );
+  }
+
+  if (
+    consensus.margin <
+    CONFIG.MIN_MARGIN_PCT
+  ) {
+    blockers.push(
+      "Margem entre opções muito pequena"
+    );
+  }
+
+  if (
+    stability <
+    CONFIG.MIN_STABILITY_PCT
+  ) {
+    blockers.push(
+      "Estabilidade abaixo do mínimo"
+    );
+  }
+
+  if (
+    quality.quality <
     CONFIG.MIN_QUALITY
   ) {
     blockers.push(
-      "QUALIDADE"
+      "Qualidade abaixo do mínimo"
     );
   }
 
-  if (
-    stability.pct <= 0
-  ) {
-    blockers.push(
-      "ESTABILIDADE_0"
-    );
-  }
+  /*
+  Importante:
+  o sistema continua sendo um radar
+  estatístico, não uma garantia de resultado.
+  */
 
-  if (
-    adaptiveBacktestOverride
-  ) {
-    warnings.push(
-      "BACKTEST_ABAIXO_DO_NORMAL"
-    );
-  }
+  const signal =
+    blockers.length === 0
+      ? "SIGNAL"
+      : "NO_SIGNAL";
 
-  /* ==========================================================
-     SINAL BASE
-     ----------------------------------------------------------
-     IMPORTANTE:
-     "sinal" é declarado ANTES de qualquer utilização.
-  ========================================================== */
-
-  let sinal =
-    hasEnoughData &&
-    enoughStrategies &&
-    enoughVotes &&
-    enoughConsensus &&
-    enoughMargin &&
-    stable &&
-    backtestHealthy &&
-    recentHealthy &&
-    q >=
-      CONFIG.MIN_QUALITY;
-
-  if (
-    stability.pct <= 0
-  ) {
-    sinal = false;
-  }
-
-  if (
-    c.entrada === "B"
-  ) {
-    if (
-      c.voteCount < 3 ||
-      c.consensusPct < 64 ||
-      stability.pct < 75
-    ) {
-      sinal = false;
-
-      blockers.push(
-        "BRANCO"
-      );
-    }
-  }
-
-  if (
-    c.marginPct <
-    CONFIG.MIN_MARGIN_PCT
-  ) {
-    sinal = false;
-
-    if (
-      !blockers.includes(
-        "MARGEM"
-      )
-    ) {
-      blockers.push(
-        "MARGEM"
-      );
-    }
-  }
-
-  const sortedVotes =
-    Object.entries(
-      c.votes
-    ).sort(
-      (a, b) =>
-        b[1] - a[1]
-    );
-
-  if (
-    sortedVotes.length >= 2 &&
-    sortedVotes[0][1] ===
-      sortedVotes[1][1] &&
-    sortedVotes[0][1] >= 2
-  ) {
-    sinal = false;
-
-    blockers.push(
-      "EMPATE"
-    );
-  }
-
-  /* ==========================================================
-     NORMALIZAÇÃO DOS DIAGNÓSTICOS
-     ----------------------------------------------------------
-     DECLARADOS ANTES DE QUALQUER USO.
-  ========================================================== */
-
-  const uniqueBlockers =
-    [
-      ...new Set(
-        blockers
-      )
-    ];
-
-  const uniqueWarnings =
-    [
-      ...new Set(
-        warnings
-      )
-    ];
-
-  /* ==========================================================
-     LOG
-  ========================================================== */
-
-  if (
-    uniqueWarnings.length
-  ) {
-    console.log(
-      `[ADAPTIVE] ${uniqueWarnings.join(" | ")} | backtest=${bestRate}% | recente=${recentRate}%`
-    );
-  }
-
-  if (
-    uniqueBlockers.length
-  ) {
-    console.log(
-      `[BLOCKERS] ${uniqueBlockers.join(" | ")}`
-    );
-
-    console.log(
-      `[CHECK] histórico=${colors.length}/${CONFIG.MIN_HISTORY_SIGNAL} | estratégias=${c.activeCount}/${CONFIG.MIN_ACTIVE_STRATEGIES} | votos=${c.voteCount}/${CONFIG.MIN_VOTES} | consenso=${c.consensusPct}%/${CONFIG.MIN_CONSENSUS_PCT}% | votosPct=${c.votePct}%/${CONFIG.MIN_VOTE_PCT}% | margem=${c.marginPct}%/${CONFIG.MIN_MARGIN_PCT}% | estabilidade=${stability.pct}%/${CONFIG.MIN_STABILITY_PCT}% | backtest=${bestRate}%/${CONFIG.MIN_BACKTEST_RATE}% | recente=${recentRate}%/${CONFIG.MIN_RECENT_RATE}% | qualidade=${q}/${CONFIG.MIN_QUALITY}`
-    );
-  }
-
-  if (
-    sinal &&
-    adaptiveBacktestOverride
-  ) {
-    console.log(
-      `[STRONG SIGNAL] entrada=${c.entrada} | consenso=${c.consensusPct}% | votos=${c.voteCount}/${c.totalVotes} | margem=${c.marginPct}% | estabilidade=${stability.pct}% | qualidade=${q}% | backtest=${bestRate}% | recente=${recentRate}% | modo=ADAPTATIVO_FORTE`
-    );
-  }
-
-  /* ==========================================================
-     ENTRADA FINAL
-  ========================================================== */
-
-  const entradaFinal =
-    sinal === true &&
+  const canEnter =
+    signal === "SIGNAL" &&
     [
       "V",
       "P",
       "B"
     ].includes(
-      c.entrada
-    )
-      ? c.entrada
-      : null;
-
-  let conf =
-    Number(
-      c.confidence
-    ) || 0;
-
-  if (
-    sinal === true &&
-    adaptiveBacktestOverride
-  ) {
-    conf =
-      Math.min(
-        90,
-        conf + 2
-      );
-  }
-
-  if (!sinal) {
-    conf =
-      Math.min(
-        conf,
-        49
-      );
-  }
-
-  const status =
-    sinal === true
-      ? "SIGNAL"
-      : "NO_SIGNAL";
-
-  const blockerDescriptions =
-    describeBlockers(
-      uniqueBlockers
+      consensus.entrada
     );
 
-  const motivo =
-    sinal === true
-      ? [
-          `Entrada ${entradaFinal}`,
-          `consenso ${c.consensusPct}%`,
-          `votos ${c.voteCount}/${c.totalVotes}`,
-          `margem ${c.marginPct}%`,
-          `estabilidade ${stability.pct}%`,
-          `qualidade ${q}%`,
-          adaptiveBacktestOverride
-            ? "backtest adaptativo"
-            : "backtest normal"
-        ].join(" · ")
-      : [
-          "NO SIGNAL",
-          `consenso ${c.consensusPct}%`,
-          `margem ${c.marginPct}%`,
-          `estabilidade ${stability.pct}%`,
-          `qualidade ${q}%`,
-          uniqueBlockers.length
-            ? `bloqueios ${uniqueBlockers.join(", ")}`
-            : "sem bloqueios identificados"
-        ].join(" · ");
+  const strategyRows =
+    Object.keys(
+      strategies
+    ).map(
+      name => {
+        const s =
+          strategies[name];
+
+        const stat =
+          back.stats[name];
+
+        return {
+          estrategia:
+            name,
+
+          nome:
+            STRATEGY_LABELS[name],
+
+          entrada:
+            s?.entrada ||
+            null,
+
+          score:
+            round1(
+              s?.score ||
+                0
+            ),
+
+          peso:
+            round3(
+              stat?.peso ||
+                BASE_WEIGHTS[
+                  name
+                ] ||
+                1
+            ),
+
+          taxa:
+            round1(
+              stat?.taxa ||
+                0
+            ),
+
+          recenteTaxa:
+            round1(
+              stat?.recenteTaxa ||
+                0
+            ),
+
+          taxaAjustada:
+            round1(
+              stat?.taxaAjustada ||
+                50
+            ),
+
+          testes:
+            stat?.testes ||
+            0
+        };
+      }
+    );
 
   return {
-    ok: true,
-
     version:
       VERSION,
 
-    source:
-      "local",
-
-    model:
-      "local-v4.1.3-adaptive",
+    signal,
 
     entrada:
-      entradaFinal,
+      canEnter
+        ? consensus.entrada
+        : null,
 
-    nextEntry:
-      entradaFinal,
+    canEnter,
 
-    suggestion:
-      entradaFinal,
+    disclaimer:
+      "Radar estatístico baseado em histórico e heurísticas. Não garante o próximo resultado.",
 
-    signal:
-      entradaFinal,
+    history:
+      clean.length,
 
-    color:
-      entradaFinal,
+    latest:
+      clean[
+        clean.length - 1
+      ],
 
-    sinal:
-      Boolean(
-        sinal
+    consensus: {
+      entrada:
+        consensus.entrada,
+
+      consenso:
+        consensus.consenso,
+
+      votePct:
+        consensus.votePct,
+
+      margin:
+        consensus.margin,
+
+      votes:
+        consensus.votos,
+
+      active:
+        consensus.active,
+
+      votesWinner:
+        consensus.votesWinner
+    },
+
+    stability:
+      round1(
+        stability
       ),
-
-    hasSignal:
-      Boolean(
-        sinal
-      ),
-
-    status,
-
-    conf:
-      sinal === true
-        ? conf
-        : 0,
-
-    confidence:
-      sinal === true
-        ? conf
-        : 0,
-
-    qualidade:
-      q,
 
     quality:
-      q,
+      quality.quality,
 
-    regime:
-      regime.regime,
+    backtestRate:
+      quality.backRate,
 
-    regimeScore:
-      regime.score,
+    recentRate:
+      quality.recentRate,
 
-    regimeInfo:
-      regime,
+    regime,
 
-    consenso:
-      c.consensusPct,
-
-    consensus:
-      c.consensusPct,
-
-    consensusPct:
-      c.consensusPct,
-
-    consensusPercent:
-      c.consensusPct,
-
-    consensusVotes:
-      c.voteCount,
-
-    consensusTotal:
-      c.totalVotes,
-
-    consensusVotePct:
-      c.votePct,
-
-    marginPct:
-      c.marginPct,
-
-    weightedMarginPct:
-      c.marginPct,
-
-    edge:
-      c.edge,
-
-    stabilityPct:
-      stability.pct,
-
-    stability,
-
-    votes:
-      c.votes,
-
-    weighted:
-      c.weighted,
-
-    motivo,
-
-    reason:
-      sinal === true
-        ? `Entrada ${entradaFinal} · consenso ${c.consensusPct}% · estabilidade ${stability.pct}%`
-        : `Sem sinal forte · consenso ${c.consensusPct}% · margem ${c.marginPct}% · estabilidade ${stability.pct}%`,
-
-    blockers:
-      uniqueBlockers,
-
-    bloqueios:
-      uniqueBlockers,
-
-    blockerDescriptions,
-
-    motivosBloqueio:
-      blockerDescriptions,
-
-    warnings:
-      uniqueWarnings,
-
-    avisos:
-      uniqueWarnings,
-
-    adaptiveBacktest:
-      Boolean(
-        adaptiveBacktestOverride
-      ),
-
-    backtestMode:
-      adaptiveBacktestOverride
-        ? "ADAPTATIVO_FORTE"
-        : "NORMAL",
-
-    strongSetup:
-      Boolean(
-        strongSetup
-      ),
-
-    diagnostic: {
-      historicoAtual:
-        colors.length,
-
-      historicoMinimo:
-        CONFIG.MIN_HISTORY_SIGNAL,
-
-      estrategiasAtivas:
-        c.activeCount,
-
-      estrategiasMinimas:
-        CONFIG.MIN_ACTIVE_STRATEGIES,
-
-      votosAtual:
-        c.voteCount,
-
-      votosMinimos:
-        CONFIG.MIN_VOTES,
-
-      consensoAtual:
-        c.consensusPct,
-
-      consensoMinimo:
-        CONFIG.MIN_CONSENSUS_PCT,
-
-      percentualVotosAtual:
-        c.votePct,
-
-      percentualVotosMinimo:
-        CONFIG.MIN_VOTE_PCT,
-
-      margemAtual:
-        c.marginPct,
-
-      margemMinima:
-        CONFIG.MIN_MARGIN_PCT,
-
-      estabilidadeAtual:
-        stability.pct,
-
-      estabilidadeMinima:
-        CONFIG.MIN_STABILITY_PCT,
-
-      backtestAtual:
-        bestRate,
-
-      backtestMinimo:
-        CONFIG.MIN_BACKTEST_RATE,
-
-      backtestNormal:
-        Boolean(
-          backtestHealthyBase
-        ),
-
-      backtestAdaptativo:
-        Boolean(
-          adaptiveBacktestOverride
-        ),
-
-      backtestPisoAdaptativo:
-        CONFIG.STRONG_SIGNAL_MIN_BACKTEST,
-
-      backtestRecenteAtual:
-        recentRate,
-
-      backtestRecenteMinimo:
-        CONFIG.MIN_RECENT_RATE,
-
-      backtestRecenteNormal:
-        Boolean(
-          recentHealthyBase
-        ),
-
-      backtestRecentePisoAdaptativo:
-        CONFIG.STRONG_SIGNAL_MIN_RECENT,
-
-      sinalForte:
-        Boolean(
-          strongSetup
-        ),
-
-      qualidadeAtual:
-        q,
-
-      qualidadeMinima:
-        CONFIG.MIN_QUALITY,
-
-      sinalBase:
-        Boolean(
-          hasEnoughData &&
-          enoughStrategies &&
-          enoughVotes &&
-          enoughConsensus &&
-          enoughMargin &&
-          stable &&
-          backtestHealthyBase &&
-          recentHealthyBase &&
-          q >=
-            CONFIG.MIN_QUALITY
-        ),
-
-      sinalAdaptativo:
-        Boolean(
-          hasEnoughData &&
-          enoughStrategies &&
-          enoughVotes &&
-          enoughConsensus &&
-          enoughMargin &&
-          stable &&
-          backtestHealthy &&
-          recentHealthy &&
-          q >=
-            CONFIG.MIN_QUALITY
-        ),
-
-      sinalFinal:
-        Boolean(
-          sinal
-        )
-    },
-
-    estrategias:
-      c.strategies,
+    blockers,
 
     strategies:
-      c.strategies,
+      strategyRows,
 
-    strategyDetails:
-      c.details,
+    backtest: {
+      ranking:
+        back.ranking,
 
-    strategyStats:
-      bt.stats,
-
-    adaptiveWeights:
-      c.adaptiveWeights,
-
-    backtest:
-      bt,
-
-    recentBacktestRate:
-      bt.recentRate,
-
-    sample:
-      colors.length,
-
-    historico:
-      colors.slice(-50),
-
-    timestamp:
-      Date.now(),
-
-    filters: {
-      enoughData:
-        hasEnoughData,
-
-      enoughStrategies:
-        enoughStrategies,
-
-      enoughVotes:
-        enoughVotes,
-
-      enoughConsensus:
-        enoughConsensus,
-
-      enoughMargin:
-        enoughMargin,
-
-      stable,
-
-      backtestHealthy,
-
-      recentHealthy,
-
-      backtestHealthyNormal:
-        backtestHealthyBase,
-
-      recentHealthyNormal:
-        recentHealthyBase,
-
-      adaptiveBacktestOverride,
-
-      strongSetup,
-
-      quality:
-        q >=
-        CONFIG.MIN_QUALITY,
-
-      stabilityZeroBlocked:
-        stability.pct <= 0
+      sample:
+        back.amostra
     },
 
-    warning:
-      "Score estatístico/heurístico. Não representa garantia ou probabilidade certa do resultado futuro."
+    generatedAt:
+      new Date().toISOString()
   };
 }
 
-/* ============================================================
-   PERFORMANCE
-============================================================ */
+/*
+============================================================
+ PERFORMANCE
+============================================================
+*/
 
 const PERFORMANCE = {
-  total: 0,
-  wins: 0,
-  losses: 0,
+  total:
+    0,
+
+  wins:
+    0,
+
+  losses:
+    0,
+
+  pushes:
+    0,
+
   history: []
 };
 
-const ROUND = {
-  fingerprint: null,
+function registerResult(
+  entry,
+  actual
+) {
+  if (
+    !entry ||
+    !actual
+  ) {
+    return null;
+  }
 
-  pending: null,
+  PERFORMANCE.total++;
 
-  lastResult: null,
+  let result =
+    "LOSS";
 
-  lastAnalysis: null,
+  if (
+    entry === actual
+  ) {
+    PERFORMANCE.wins++;
 
-  analyzing: false,
+    result =
+      "WIN";
+  } else {
+    PERFORMANCE.losses++;
+  }
 
-  analyzePromise: null,
+  const row = {
+    entry,
+    actual,
+    result,
 
-  book: []
-};
+    time:
+      new Date().toISOString()
+  };
 
-function performanceStats() {
+  PERFORMANCE.history.push(
+    row
+  );
+
+  if (
+    PERFORMANCE.history
+      .length > 500
+  ) {
+    PERFORMANCE.history =
+      PERFORMANCE.history.slice(
+        -500
+      );
+  }
+
+  return row;
+}
+
+function performanceData() {
   const total =
     PERFORMANCE.total;
-
-  const rate =
-    total > 0
-      ? round1(
-          (
-            PERFORMANCE.wins /
-            total
-          ) * 100
-        )
-      : 0;
 
   return {
     total,
@@ -4003,1165 +3281,359 @@ function performanceStats() {
     losses:
       PERFORMANCE.losses,
 
-    acertos:
-      PERFORMANCE.wins,
-
-    erros:
-      PERFORMANCE.losses,
+    pushes:
+      PERFORMANCE.pushes,
 
     winRate:
-      rate,
-
-    taxa:
-      rate,
-
-    assertividade:
-      rate,
-
-    pending:
-      ROUND.pending
-        ? 1
+      total
+        ? pct(
+            PERFORMANCE.wins,
+            total
+          )
         : 0,
 
-    pendentes:
-      ROUND.pending
-        ? 1
-        : 0,
-
-    last:
-      PERFORMANCE.history.slice(
-        0,
-        50
-      )
+    history:
+      PERFORMANCE.history
   };
 }
 
-/* ============================================================
-   REGISTRO
-============================================================ */
+/*
+============================================================
+ AI
+============================================================
+*/
 
-function registerResult(
-  entry,
-  actual,
-  roll,
-  confidence
-) {
+function getAI() {
   if (
-    !entry ||
-    !actual
+    AI_PROVIDER === "xai" &&
+    XAI_API_KEY
   ) {
-    return null;
+    return {
+      provider:
+        "xai",
+
+      key:
+        XAI_API_KEY,
+
+      model:
+        XAI_MODEL,
+
+      base:
+        "https://api.x.ai/v1"
+    };
   }
-
-  const normalizedEntry =
-    String(entry)
-      .trim()
-      .toUpperCase();
-
-  const normalizedActual =
-    String(actual)
-      .trim()
-      .toUpperCase();
-
-  const win =
-    normalizedEntry ===
-    normalizedActual;
-
-  PERFORMANCE.total++;
-
-  if (win) {
-    PERFORMANCE.wins++;
-  } else {
-    PERFORMANCE.losses++;
-  }
-
-  const row = {
-    id:
-      Date.now() +
-      "_" +
-      Math.random()
-        .toString(36)
-        .slice(2, 8),
-
-    timestamp:
-      new Date()
-        .toISOString(),
-
-    entrada:
-      normalizedEntry,
-
-    entry:
-      normalizedEntry,
-
-    resultado:
-      normalizedActual,
-
-    actual:
-      normalizedActual,
-
-    roll:
-      roll ?? null,
-
-    conf:
-      Number(
-        confidence
-      ) || 0,
-
-    status:
-      win
-        ? "WIN"
-        : "LOSS",
-
-    win,
-
-    loss:
-      !win
-  };
-
-  PERFORMANCE.history.unshift(
-    row
-  );
 
   if (
-    PERFORMANCE.history.length >
-    300
+    GROQ_API_KEY
   ) {
-    PERFORMANCE.history.length =
-      300;
-  }
+    return {
+      provider:
+        "groq",
 
-  ROUND.book.unshift(
-    row
-  );
+      key:
+        GROQ_API_KEY,
+
+      model:
+        GROQ_DEFAULT_MODEL,
+
+      base:
+        "https://api.groq.com/openai/v1"
+    };
+  }
 
   if (
-    ROUND.book.length >
-    300
+    XAI_API_KEY
   ) {
-    ROUND.book.length =
-      300;
-  }
+    return {
+      provider:
+        "xai",
 
-  console.log(
-    `[RESULT] ${
-      win
-        ? "WIN"
-        : "LOSS"
-    } | entrada=${normalizedEntry} | resultado=${normalizedActual} | roll=${roll}`
-  );
+      key:
+        XAI_API_KEY,
 
-  return row;
-}
+      model:
+        XAI_MODEL,
 
-/* ============================================================
-   FINGERPRINT
-============================================================ */
-
-function itemFingerprint(
-  item
-) {
-  if (!item) {
-    return "";
-  }
-
-  return [
-    item.id || "",
-    item.instant || "",
-    item.roll ?? "",
-    item.color || ""
-  ].join("|");
-}
-
-function fingerprint(
-  items
-) {
-  if (
-    !Array.isArray(items) ||
-    !items.length
-  ) {
-    return "empty";
-  }
-
-  const latest =
-    getLatestRound(
-      items
-    );
-
-  if (!latest) {
-    return "empty";
-  }
-
-  return itemFingerprint(
-    latest
-  );
-}
-
-/* ============================================================
-   LIQUIDAÇÃO
-============================================================ */
-
-function settlePending(
-  items
-) {
-  if (
-    !ROUND.pending ||
-    !Array.isArray(items) ||
-    !items.length
-  ) {
-    return null;
-  }
-
-  const sorted =
-    sortRoundsAscending(
-      items
-    );
-
-  const pendingFp =
-    ROUND.pending.fingerprint;
-
-  const pendingEntry =
-    ROUND.pending.entrada;
-
-  const pendingIndex =
-    sorted.findIndex(
-      item =>
-        itemFingerprint(
-          item
-        ) ===
-        pendingFp
-    );
-
-  let target = null;
-
-  if (
-    pendingIndex >= 0 &&
-    sorted[
-      pendingIndex + 1
-    ]
-  ) {
-    target =
-      sorted[
-        pendingIndex + 1
-      ];
-  }
-
-  if (!target) {
-    target =
-      getLatestRound(
-        sorted
-      );
-  }
-
-  if (!target) {
-    return null;
-  }
-
-  const targetFp =
-    itemFingerprint(
-      target
-    );
-
-  if (
-    targetFp ===
-    pendingFp
-  ) {
-    return null;
-  }
-
-  const actual =
-    target.color;
-
-  if (!actual) {
-    return null;
-  }
-
-  const result =
-    registerResult(
-      pendingEntry,
-      actual,
-      target.roll,
-      ROUND.pending.conf
-    );
-
-  ROUND.pending =
-    null;
-
-  ROUND.lastResult =
-    result;
-
-  console.log(
-    `[SETTLE] entrada=${pendingEntry} | resultado=${target.color} | roll=${target.roll} | status=${result?.status || "-"}`
-  );
-
-  return result;
-}
-
-/* ============================================================
-   JSON IA
-============================================================ */
-
-function extractJson(
-  text
-) {
-  if (!text) {
-    return null;
-  }
-
-  let clean =
-    String(text)
-      .replace(
-        /```json/gi,
-        ""
-      )
-      .replace(
-        /```/g,
-        ""
-      )
-      .trim();
-
-  try {
-    return JSON.parse(
-      clean
-    );
-  } catch (_) {}
-
-  const start =
-    clean.indexOf(
-      "{"
-    );
-
-  const end =
-    clean.lastIndexOf(
-      "}"
-    );
-
-  if (
-    start >= 0 &&
-    end > start
-  ) {
-    try {
-      return JSON.parse(
-        clean.slice(
-          start,
-          end + 1
-        )
-      );
-    } catch (_) {}
+      base:
+        "https://api.x.ai/v1"
+    };
   }
 
   return null;
 }
 
-/* ============================================================
-   IA
-============================================================ */
-
-async function improveWithAI(
-  local,
-  colors
-) {
+function aiAvailable() {
   const ai =
-    activeAI();
+    getAI();
 
   if (!ai) {
     return {
-      ...local,
-
-      aiUsed:
+      enabled:
         false,
 
-      aiSuggestion:
+      provider:
         null,
 
-      aiAgreement:
+      model:
         null
     };
   }
 
-  if (
-    local.sinal !== true ||
-    !local.entrada
-  ) {
+  return {
+    enabled:
+      true,
+
+    provider:
+      ai.provider,
+
+    model:
+      ai.model
+  };
+}
+
+async function askAI(
+  analysis,
+  payload = {}
+) {
+  const ai =
+    getAI();
+
+  if (!ai) {
     return {
-      ...local,
-
-      entrada:
-        null,
-
-      nextEntry:
-        null,
-
-      suggestion:
-        null,
-
-      signal:
-        null,
-
-      color:
-        null,
-
-      sinal:
+      enabled:
         false,
 
-      hasSignal:
+      validated:
         false,
 
-      status:
-        "NO_SIGNAL",
-
-      conf:
-        0,
-
-      confidence:
-        0,
-
-      aiUsed:
-        false,
-
-      aiSuggestion:
-        null,
-
-      aiAgreement:
-        null,
-
-      aiReason:
-        "IA não acionada para transformar NO_SIGNAL em entrada."
+      message:
+        "IA não configurada."
     };
   }
 
-  const models =
-    ai.name === "groq"
-      ? [
-          ai.model,
-          ...GROQ_MODELS
-        ]
-      : [
-          ai.model
-        ];
+  if (
+    !analysis ||
+    analysis.signal !==
+      "SIGNAL"
+  ) {
+    return {
+      enabled:
+        true,
 
-  const unique =
-    [
-      ...new Set(
-        models.filter(
-          Boolean
-        )
+      validated:
+        false,
+
+      message:
+        "A IA não cria sinal quando o radar local não encontrou sinal."
+    };
+  }
+
+  const modelKey =
+    `${ai.provider}:${ai.model}`;
+
+  if (
+    MODEL_COOLDOWN.has(
+      modelKey
+    ) &&
+    Date.now() <
+      MODEL_COOLDOWN.get(
+        modelKey
       )
-    ];
+  ) {
+    return {
+      enabled:
+        true,
 
-  const system = `
-Você é um validador estatístico auxiliar.
+      validated:
+        false,
 
-Analise SOMENTE os dados fornecidos.
+      cooldown:
+        true,
 
-A decisão LOCAL é a principal referência.
+      message:
+        "Modelo temporariamente em cooldown."
+    };
+  }
 
-Você NÃO pode criar uma entrada se o sistema local estiver em NO_SIGNAL.
+  const prompt = `
+Você é um validador de um radar estatístico para um jogo de resultados V/P/B.
 
-Você NÃO deve tratar score como probabilidade garantida.
+Não trate o próximo resultado como previsível ou garantido.
 
-Não invente padrões.
+Analise apenas se os dados apresentados são coerentes com o sinal estatístico já calculado.
 
-Não prometa resultado.
+Se houver inconsistência, recomende NÃO ENTRAR.
 
-Sua função é apenas dizer se concorda ou discorda
-com a entrada local.
+Não invente dados.
 
-Responda SOMENTE JSON válido:
+ANÁLISE:
+
+${JSON.stringify(
+  analysis,
+  null,
+  2
+)}
+
+HISTÓRICO:
+
+${JSON.stringify(
+  payload.colors ||
+    [],
+  null,
+  2
+)}
+
+Responda em JSON com:
 
 {
-  "entrada": "V/P/B/null",
-  "concorda": true,
-  "conf": 0,
-  "motivo": "texto curto"
+  "valid": true ou false,
+  "confidence": número de 0 a 100,
+  "reason": "explicação curta"
 }
 `;
 
-  const user =
-    JSON.stringify({
-      historico:
-        colors.slice(-50),
+  try {
+    const response =
+      await postJson(
+        `${ai.base}/chat/completions`,
 
-      entradaLocal:
-        local.entrada,
+        {
+          model:
+            ai.model,
 
-      consenso:
-        local.consensusPct,
+          temperature:
+            0.1,
 
-      votos:
-        local.consensusVotes,
+          max_tokens:
+            250,
 
-      totalVotos:
-        local.consensusTotal,
+          messages: [
+            {
+              role:
+                "system",
 
-      margem:
-        local.marginPct,
+              content:
+                "Você valida sinais estatísticos. Nunca prometa resultado."
+            },
 
-      estabilidade:
-        local.stabilityPct,
+            {
+              role:
+                "user",
 
-      qualidade:
-        local.qualidade,
+              content:
+                prompt
+            }
+          ]
+        },
 
-      regime:
-        local.regime,
+        {
+          Authorization:
+            `Bearer ${ai.key}`
+        },
 
-      strategyDetails:
-        local.strategyDetails,
+        30000
+      );
 
-      strategyStats:
-        local.strategyStats,
+    const content =
+      response?.choices?.[0]
+        ?.message
+        ?.content || "";
 
-      backtest: {
-        taxa:
-          local.backtest?.taxa,
-
-        recentRate:
-          local.backtest
-            ?.recentRate
-      }
-    });
-
-  for (
-    const model of unique
-  ) {
-    if (
-      isCooling(model)
-    ) {
-      continue;
-    }
+    let parsed = null;
 
     try {
-      const r =
-        await postJson(
-          ai.base +
-            "/chat/completions",
-
-          {
-            model,
-
-            temperature: 0,
-
-            max_tokens:
-              180,
-
-            messages: [
-              {
-                role:
-                  "system",
-
-                content:
-                  system
-              },
-
-              {
-                role:
-                  "user",
-
-                content:
-                  user
-              }
-            ]
-          },
-
-          {
-            Authorization:
-              "Bearer " +
-              ai.key
-          }
-        );
-
-      const json =
+      parsed =
         JSON.parse(
-          r.body
-        );
-
-      const text =
-        json
-          ?.choices?.[0]
-          ?.message
-          ?.content ||
-        "";
-
-      const parsed =
-        extractJson(
-          text
-        );
-
-      if (!parsed) {
-        continue;
-      }
-
-      let entry =
-        parsed.entrada;
-
-      if (
-        entry != null
-      ) {
-        entry =
-          String(
-            entry
-          )
-            .toUpperCase()
-            .charAt(0);
-      }
-
-      if (
-        ![
-          "V",
-          "P",
-          "B"
-        ].includes(
-          entry
-        )
-      ) {
-        entry = null;
-      }
-
-      const agreement =
-        entry ===
-        local.entrada;
-
-      const parsedConf =
-        Number(
-          parsed.conf
-        );
-
-      let conf =
-        Number.isFinite(
-          parsedConf
-        )
-          ? clamp(
-              parsedConf,
-              30,
-              90
+          content
+            .replace(
+              /```json/gi,
+              ""
             )
-          : local.conf;
-
-      conf =
-        Math.min(
-          conf,
-          Number(
-            local.conf
-          ) +
-            CONFIG.AI_MAX_CONF_BONUS
+            .replace(
+              /```/g,
+              ""
+            )
+            .trim()
         );
-
-      const entradaFinal =
-        local.sinal === true
-          ? local.entrada
-          : null;
-
-      return {
-        ...local,
-
-        source:
-          "ai",
-
-        model,
-
-        aiUsed:
-          true,
-
-        aiSuggestion:
-          entry,
-
-        aiAgreement:
-          agreement,
-
-        aiReason:
-          String(
-            parsed.motivo ||
-            ""
-          ).slice(
-            0,
-            300
-          ),
-
-        entrada:
-          entradaFinal,
-
-        nextEntry:
-          entradaFinal,
-
-        suggestion:
-          entradaFinal,
-
-        signal:
-          entradaFinal,
-
-        color:
-          entradaFinal,
-
-        sinal:
-          local.sinal === true,
-
-        hasSignal:
-          local.sinal === true,
-
-        status:
-          local.sinal === true
-            ? "SIGNAL"
-            : "NO_SIGNAL",
-
-        conf:
-          local.sinal === true
-            ? conf
-            : 0,
+    } catch (_) {
+      parsed = {
+        valid:
+          false,
 
         confidence:
-          local.sinal === true
-            ? conf
-            : 0,
-
-        motivo:
-          `${local.motivo} · IA ${
-            agreement
-              ? "concorda"
-              : "diverge"
-          }`
-      };
-    } catch (err) {
-      const msg =
-        String(
-          err.message ||
-          ""
-        );
-
-      if (
-        err.statusCode ===
-          429 ||
-        /429|rate.?limit|tokens per day|TPD/i.test(
-          msg
-        )
-      ) {
-        setCooldown(
-          model,
-          10 *
-            60 *
-            1000
-        );
-
-        console.log(
-          `[ai] ${model}: limite atingido.`
-        );
-      }
-
-      if (
-        err.statusCode ===
-          404 ||
-        /model.*not.*found|does not exist|not have access/i.test(
-          msg
-        )
-      ) {
-        setCooldown(
-          model,
-          60 *
-            60 *
-            1000
-        );
-
-        console.log(
-          `[ai] ${model}: modelo indisponível.`
-        );
-      }
-
-      console.log(
-        `[ai] erro ${model}:`,
-        msg.slice(
           0,
-          300
-        )
-      );
+
+        reason:
+          content ||
+          "Resposta da IA não pôde ser interpretada."
+      };
     }
-  }
-
-  return {
-    ...local,
-
-    aiUsed:
-      false,
-
-    aiSuggestion:
-      null,
-
-    aiAgreement:
-      null
-  };
-}
-
-/* ============================================================
-   SANITIZAÇÃO FINAL
-============================================================ */
-
-function sanitizeAnalysisForOutput(
-  data
-) {
-  const result = {
-    ...data
-  };
-
-  const validSignal =
-    result.sinal === true &&
-    result.hasSignal === true &&
-    result.status ===
-      "SIGNAL" &&
-    [
-      "V",
-      "P",
-      "B"
-    ].includes(
-      result.entrada
-    );
-
-  if (!validSignal) {
-    result.sinal =
-      false;
-
-    result.hasSignal =
-      false;
-
-    result.status =
-      "NO_SIGNAL";
-
-    result.entrada =
-      null;
-
-    result.nextEntry =
-      null;
-
-    result.suggestion =
-      null;
-
-    result.signal =
-      null;
-
-    result.color =
-      null;
-
-    result.conf =
-      0;
-
-    result.confidence =
-      0;
-
-    result.currentEntry =
-      null;
-
-    result.entry =
-      null;
-
-    result.displayEntry =
-      null;
-
-    result.canEnter =
-      false;
-  } else {
-    const entry =
-      result.entrada;
-
-    result.currentEntry =
-      entry;
-
-    result.entry =
-      entry;
-
-    result.displayEntry =
-      entry;
-
-    result.canEnter =
-      true;
-  }
-
-  return result;
-}
-
-/* ============================================================
-   PENDING
-============================================================ */
-
-function buildPendingOutput() {
-  if (
-    !ROUND.pending
-  ) {
-    return null;
-  }
-
-  return {
-    entrada:
-      ROUND.pending.entrada,
-
-    conf:
-      ROUND.pending.conf,
-
-    status:
-      "PENDING",
-
-    createdAt:
-      ROUND.pending.createdAt ||
-      null
-  };
-}
-
-/* ============================================================
-   ANALYZE INTERNO
-============================================================ */
-
-async function analyzeInternal(
-  payload
-) {
-  payload =
-    payload || {};
-
-  let items =
-    Array.isArray(
-      payload.items
-    )
-      ? payload.items
-      : null;
-
-  if (!items) {
-    const history =
-      await getHistory();
-
-    items =
-      history.items;
-  }
-
-  items =
-    normalizeItems(
-      items,
-      "input"
-    );
-
-  items =
-    sortRoundsAscending(
-      items
-    );
-
-  const colors =
-    items.map(
-      x => x.color
-    );
-
-  const rolls =
-    items.map(
-      x => x.roll
-    );
-
-  const fp =
-    fingerprint(
-      items
-    );
-
-  const force =
-    Boolean(
-      payload.force
-    );
-
-  if (
-    ROUND.pending &&
-    ROUND.pending.fingerprint !==
-      fp
-  ) {
-    settlePending(
-      items
-    );
-  }
-
-  if (
-    !force &&
-    ROUND.fingerprint ===
-      fp &&
-    ROUND.lastAnalysis
-  ) {
-    const cached =
-      sanitizeAnalysisForOutput(
-        ROUND.lastAnalysis
-      );
 
     return {
-      ...cached,
-
-      cached:
+      enabled:
         true,
 
-      performance:
-        performanceStats(),
-
-      book:
-        ROUND.book.slice(
-          0,
-          50
+      validated:
+        Boolean(
+          parsed.valid
         ),
 
-      pending:
-        buildPendingOutput(),
+      confidence:
+        clamp(
+          parsed.confidence,
+          0,
+          100
+        ),
 
-      pendentes:
-        ROUND.pending
-          ? 1
-          : 0,
+      reason:
+        parsed.reason ||
+        "",
 
-      lastResult:
-        ROUND.lastResult
+      provider:
+        ai.provider,
+
+      model:
+        ai.model
+    };
+  } catch (err) {
+    if (
+      err.statusCode ===
+      429
+    ) {
+      MODEL_COOLDOWN.set(
+        modelKey,
+        Date.now() +
+          10 * 60 * 1000
+      );
+    }
+
+    console.log(
+      "[AI]",
+      err.message
+    );
+
+    return {
+      enabled:
+        true,
+
+      validated:
+        false,
+
+      error:
+        err.message,
+
+      statusCode:
+        err.statusCode ||
+        500
     };
   }
-
-  ROUND.fingerprint =
-    fp;
-
-  ROUND.analyzing =
-    true;
-
-  let result =
-    localAnalysis(
-      colors,
-      rolls
-    );
-
-  if (
-    payload.useAI !== false
-  ) {
-    result =
-      await improveWithAI(
-        result,
-        colors
-      );
-  }
-
-  result =
-    sanitizeAnalysisForOutput(
-      result
-    );
-
-  if (
-    result.sinal === true &&
-    result.entrada &&
-    !ROUND.pending
-  ) {
-    ROUND.pending = {
-      fingerprint:
-        fp,
-
-      entrada:
-        result.entrada,
-
-      conf:
-        result.conf,
-
-      createdAt:
-        Date.now(),
-
-      regime:
-        result.regime,
-
-      consensus:
-        result.consensus,
-
-      quality:
-        result.qualidade,
-
-      stability:
-        result.stabilityPct,
-
-      backtestMode:
-        result.backtestMode ||
-        "NORMAL"
-    };
-
-    console.log(
-      `[ENTRY] ${result.entrada} | conf=${result.conf}% | consenso=${result.consensus}% | margem=${result.marginPct}% | estabilidade=${result.stabilityPct}% | qualidade=${result.qualidade}% | regime=${result.regime} | modo=${result.backtestMode || "NORMAL"}`
-    );
-  } else if (
-    result.sinal === true &&
-    result.entrada &&
-    ROUND.pending
-  ) {
-    console.log(
-      `[ENTRY] já existe entrada pendente: ${ROUND.pending.entrada}`
-    );
-  } else {
-    console.log(
-      `[NO SIGNAL] consenso=${result.consensus}% | margem=${result.marginPct}% | estabilidade=${result.stabilityPct}% | qualidade=${result.qualidade}% | regime=${result.regime} | bloqueios=${(result.blockers || []).join(",") || "NENHUM"}`
-    );
-  }
-
-  ROUND.lastAnalysis =
-    result;
-
-  ROUND.analyzing =
-    false;
-
-  return {
-    ...result,
-
-    cached:
-      false,
-
-    performance:
-      performanceStats(),
-
-    book:
-      ROUND.book.slice(
-        0,
-        50
-      ),
-
-    pending:
-      buildPendingOutput(),
-
-    pendentes:
-      ROUND.pending
-        ? 1
-        : 0,
-
-    lastResult:
-      ROUND.lastResult
-  };
 }
 
-/* ============================================================
-   ANALYZE COM LOCK
-============================================================ */
-
-async function analyze(
-  payload
-) {
-  if (
-    ROUND.analyzePromise
-  ) {
-    console.log(
-      "[ANALYZE] requisição aguardando análise atual..."
-    );
-
-    return ROUND.analyzePromise;
-  }
-
-  ROUND.analyzePromise =
-    analyzeInternal(
-      payload
-    )
-      .catch(
-        err => {
-          throw err;
-        }
-      )
-      .finally(
-        () => {
-          ROUND.analyzePromise =
-            null;
-
-          ROUND.analyzing =
-            false;
-        }
-      );
-
-  return ROUND.analyzePromise;
-}
-
-/* ============================================================
-   BODY
-============================================================ */
+/*
+============================================================
+ BODY
+============================================================
+*/
 
 function readBody(
   req
@@ -5180,27 +3652,39 @@ function readBody(
 
           if (
             data.length >
-            5 *
-              1024 *
-              1024
+            5 * 1024 * 1024
           ) {
+            req.destroy();
+
             reject(
               new Error(
-                "Body muito grande."
+                "Body muito grande"
               )
             );
-
-            req.destroy();
           }
         }
       );
 
       req.on(
         "end",
-        () =>
-          resolve(
-            data
-          )
+        () => {
+          if (!data) {
+            resolve({});
+            return;
+          }
+
+          try {
+            resolve(
+              JSON.parse(data)
+            );
+          } catch (_) {
+            reject(
+              new Error(
+                "JSON inválido"
+              )
+            );
+          }
+        }
       );
 
       req.on(
@@ -5211,35 +3695,58 @@ function readBody(
   );
 }
 
+/*
+============================================================
+ JSON RESPONSE
+============================================================
+*/
+
 function sendJson(
   res,
   status,
   data
 ) {
-  res.writeHead(
-    status,
-    {
-      "Content-Type":
-        "application/json; charset=utf-8",
-
-      "Cache-Control":
-        "no-store",
-
-      "Access-Control-Allow-Origin":
-        "*"
-    }
-  );
-
-  res.end(
+  const body =
     JSON.stringify(
       data
-    )
+    );
+
+  res.statusCode =
+    status;
+
+  res.setHeader(
+    "Content-Type",
+    "application/json; charset=utf-8"
   );
+
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "*"
+  );
+
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET,POST,OPTIONS"
+  );
+
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
+
+  res.setHeader(
+    "Cache-Control",
+    "no-store"
+  );
+
+  res.end(body);
 }
 
-/* ============================================================
-   MIME
-============================================================ */
+/*
+============================================================
+ STATIC
+============================================================
+*/
 
 const MIME = {
   ".html":
@@ -5266,16 +3773,147 @@ const MIME = {
   ".svg":
     "image/svg+xml",
 
-  ".webp":
-    "image/webp",
-
   ".ico":
-    "image/x-icon"
+    "image/x-icon",
+
+  ".webmanifest":
+    "application/manifest+json"
 };
 
-/* ============================================================
-   SERVER
-============================================================ */
+function safeFilePath(
+  pathname
+) {
+  let decoded;
+
+  try {
+    decoded =
+      decodeURIComponent(
+        pathname
+      );
+  } catch (_) {
+    return null;
+  }
+
+  if (
+    decoded.includes(
+      ".."
+    )
+  ) {
+    return null;
+  }
+
+  let relative =
+    decoded;
+
+  if (
+    relative === "/" ||
+    relative === ""
+  ) {
+    relative =
+      "/index.html";
+  }
+
+  const file =
+    path.normalize(
+      path.join(
+        ROOT,
+        relative
+      )
+    );
+
+  if (
+    !file.startsWith(
+      ROOT
+    )
+  ) {
+    return null;
+  }
+
+  return file;
+}
+
+function serveStatic(
+  req,
+  res,
+  pathname
+) {
+  const file =
+    safeFilePath(
+      pathname
+    );
+
+  if (!file) {
+    sendJson(
+      res,
+      400,
+      {
+        ok:
+          false,
+
+        error:
+          "Caminho inválido"
+      }
+    );
+
+    return;
+  }
+
+  fs.stat(
+    file,
+    (
+      err,
+      stat
+    ) => {
+      if (
+        err ||
+        !stat.isFile()
+      ) {
+        sendJson(
+          res,
+          404,
+          {
+            ok:
+              false,
+
+            error:
+              "Arquivo não encontrado"
+          }
+        );
+
+        return;
+      }
+
+      const ext =
+        path.extname(
+          file
+        ).toLowerCase();
+
+      res.statusCode =
+        200;
+
+      res.setHeader(
+        "Content-Type",
+        MIME[ext] ||
+          "application/octet-stream"
+      );
+
+      res.setHeader(
+        "Access-Control-Allow-Origin",
+        "*"
+      );
+
+      fs.createReadStream(
+        file
+      ).pipe(res);
+    }
+  );
+}
+
+/*
+============================================================
+ SERVER
+============================================================
+*/
 
 const server =
   http.createServer(
@@ -5283,588 +3921,341 @@ const server =
       req,
       res
     ) => {
-      res.setHeader(
-        "Access-Control-Allow-Origin",
-        "*"
-      );
-
-      res.setHeader(
-        "Access-Control-Allow-Methods",
-        "GET,POST,OPTIONS"
-      );
-
-      res.setHeader(
-        "Access-Control-Allow-Headers",
-        "Content-Type"
-      );
-
-      if (
-        req.method ===
-        "OPTIONS"
-      ) {
-        res.writeHead(
-          204
+      try {
+        res.setHeader(
+          "Access-Control-Allow-Origin",
+          "*"
         );
 
-        res.end();
+        res.setHeader(
+          "Access-Control-Allow-Methods",
+          "GET,POST,OPTIONS"
+        );
 
-        return;
-      }
+        res.setHeader(
+          "Access-Control-Allow-Headers",
+          "Content-Type, Authorization"
+        );
 
-      let url;
+        if (
+          req.method ===
+          "OPTIONS"
+        ) {
+          res.statusCode =
+            204;
 
-      try {
-        url =
+          res.end();
+
+          return;
+        }
+
+        const url =
           new URL(
             req.url,
-            `http://localhost:${PORT}`
-          );
-      } catch (_) {
-        sendJson(
-          res,
-          400,
-          {
-            ok: false,
-
-            error:
-              "URL inválida"
-          }
-        );
-
-        return;
-      }
-
-      if (
-        url.pathname ===
-        "/api/status"
-      ) {
-        const ai =
-          activeAI();
-
-        const current =
-          sanitizeAnalysisForOutput(
-            ROUND.lastAnalysis ||
-              {}
+            `http://${req.headers.host || "localhost"}`
           );
 
-        sendJson(
-          res,
-          200,
-          {
-            ok: true,
+        const pathname =
+          url.pathname;
 
-            version:
-              VERSION,
+        /*
+        ------------------------------------------------------
+        HEALTH
+        ------------------------------------------------------
+        */
 
-            server:
-              "online",
-
-            analyzing:
-              Boolean(
-                ROUND.analyzePromise
-              ),
-
-            ai:
-              Boolean(ai),
-
-            provider:
-              ai?.name ||
-              "local",
-
-            model:
-              ai?.model ||
-              "local-v4.1.3-adaptive",
-
-            performance:
-              performanceStats(),
-
-            pending:
-              Boolean(
-                ROUND.pending
-              ),
-
-            pendingEntry:
-              ROUND.pending
-                ?.entrada ||
-              null,
-
-            entrada:
-              current.sinal === true
-                ? current.entrada
-                : null,
-
-            sinal:
-              current.sinal === true,
-
-            status:
-              current.sinal === true
-                ? "SIGNAL"
-                : "NO_SIGNAL",
-
-            consensus:
-              Number(
-                current.consensus
-              ) || 0,
-
-            consensusPct:
-              Number(
-                current.consensusPct
-              ) || 0,
-
-            marginPct:
-              Number(
-                current.marginPct
-              ) || 0,
-
-            stabilityPct:
-              Number(
-                current.stabilityPct
-              ) || 0,
-
-            regime:
-              current.regime ||
-              null,
-
-            quality:
-              Number(
-                current.qualidade
-              ) || 0,
-
-            blockers:
-              current.blockers ||
-              [],
-
-            bloqueios:
-              current.bloqueios ||
-              [],
-
-            blockerDescriptions:
-              current.blockerDescriptions ||
-              [],
-
-            warnings:
-              current.warnings ||
-              [],
-
-            avisos:
-              current.avisos ||
-              [],
-
-            adaptiveBacktest:
-              Boolean(
-                current.adaptiveBacktest
-              ),
-
-            backtestMode:
-              current.backtestMode ||
-              "NORMAL",
-
-            strongSetup:
-              Boolean(
-                current.strongSetup
-              ),
-
-            diagnostic:
-              current.diagnostic ||
-              null
-          }
-        );
-
-        return;
-      }
-
-      if (
-        url.pathname ===
-        "/api/history"
-      ) {
-        try {
-          const h =
-            await getHistory();
-
-          const items =
-            sortRoundsAscending(
-              h.items
-            );
-
+        if (
+          pathname ===
+          "/health"
+        ) {
           sendJson(
             res,
             200,
             {
-              ok: true,
+              ok:
+                true,
+
+              status:
+                "online",
 
               version:
                 VERSION,
 
-              source:
-                h.source,
-
-              items
-            }
-          );
-        } catch (err) {
-          sendJson(
-            res,
-            500,
-            {
-              ok: false,
-
-              error:
-                err.message
-            }
-          );
-        }
-
-        return;
-      }
-
-      if (
-        url.pathname ===
-        "/api/live"
-      ) {
-        try {
-          const h =
-            await getHistory();
-
-          const items =
-            sortRoundsAscending(
-              h.items
-            );
-
-          sendJson(
-            res,
-            200,
-            {
-              ok: true,
-
-              source:
-                h.source,
-
-              items,
-
-              latest:
-                items[
-                  items.length - 1
-                ] || null
-            }
-          );
-        } catch (err) {
-          sendJson(
-            res,
-            500,
-            {
-              ok: false,
-
-              error:
-                err.message
-            }
-          );
-        }
-
-        return;
-      }
-
-      if (
-        url.pathname ===
-        "/api/ai"
-      ) {
-        if (
-          req.method !==
-          "POST"
-        ) {
-          sendJson(
-            res,
-            405,
-            {
-              ok: false,
-
-              error:
-                "Use POST."
+              time:
+                new Date().toISOString()
             }
           );
 
           return;
         }
 
-        try {
-          const raw =
+        /*
+        ------------------------------------------------------
+        STATUS
+        ------------------------------------------------------
+        */
+
+        if (
+          pathname ===
+            "/api/status" &&
+          req.method ===
+            "GET"
+        ) {
+          let historyInfo =
+            null;
+
+          try {
+            const history =
+              await getHistory();
+
+            historyInfo = {
+              source:
+                history.source,
+
+              count:
+                history.items.length,
+
+              latest:
+                history.items[
+                  history.items.length -
+                    1
+                ] || null
+            };
+          } catch (err) {
+            historyInfo = {
+              error:
+                err.message
+            };
+          }
+
+          sendJson(
+            res,
+            200,
+            {
+              ok:
+                true,
+
+              online:
+                true,
+
+              version:
+                VERSION,
+
+              port:
+                PORT,
+
+              ai:
+                aiAvailable(),
+
+              source:
+                sourceStatus,
+
+              history:
+                historyInfo,
+
+              performance:
+                performanceData(),
+
+              time:
+                new Date().toISOString()
+            }
+          );
+
+          return;
+        }
+
+        /*
+        ------------------------------------------------------
+        HISTORY
+        ------------------------------------------------------
+        */
+
+        if (
+          pathname ===
+            "/api/history" &&
+          req.method ===
+            "GET"
+        ) {
+          try {
+            const history =
+              await getHistory(
+                url.searchParams.get(
+                  "force"
+                ) ===
+                  "1"
+              );
+
+            const sorted =
+              sortRoundsAscending(
+                history.items
+              );
+
+            sendJson(
+              res,
+              200,
+              {
+                ok:
+                  true,
+
+                version:
+                  VERSION,
+
+                source:
+                  history.source,
+
+                count:
+                  sorted.length,
+
+                items:
+                  sorted
+              }
+            );
+          } catch (err) {
+            sendJson(
+              res,
+              502,
+              {
+                ok:
+                  false,
+
+                version:
+                  VERSION,
+
+                error:
+                  err.message,
+
+                source:
+                  sourceStatus
+              }
+            );
+          }
+
+          return;
+        }
+
+        /*
+        ------------------------------------------------------
+        LIVE
+        ------------------------------------------------------
+        */
+
+        if (
+          pathname ===
+            "/api/live" &&
+          req.method ===
+            "GET"
+        ) {
+          try {
+            const history =
+              await getHistory(
+                true
+              );
+
+            const sorted =
+              sortRoundsAscending(
+                history.items
+              );
+
+            const colors =
+              sorted.map(
+                x =>
+                  x.color
+              );
+
+            const analysis =
+              analyzeColors(
+                colors
+              );
+
+            sendJson(
+              res,
+              200,
+              {
+                ok:
+                  true,
+
+                source:
+                  history.source,
+
+                count:
+                  sorted.length,
+
+                latest:
+                  sorted[
+                    sorted.length -
+                      1
+                  ] || null,
+
+                analysis,
+
+                items:
+                  sorted
+              }
+            );
+          } catch (err) {
+            sendJson(
+              res,
+              502,
+              {
+                ok:
+                  false,
+
+                error:
+                  err.message
+              }
+            );
+          }
+
+          return;
+        }
+
+        /*
+        ------------------------------------------------------
+        ANALYZE
+        ------------------------------------------------------
+        */
+
+        if (
+          pathname ===
+            "/api/analyze" &&
+          req.method ===
+            "POST"
+        ) {
+          const body =
             await readBody(
               req
             );
 
-          let payload = {};
+          let colors =
+            Array.isArray(
+              body.colors
+            )
+              ? body.colors
+                  .map(
+                    normalizeColor
+                  )
+                  .filter(Boolean)
+              : [];
 
-          if (raw) {
-            payload =
-              JSON.parse(
-                raw
+          if (
+            colors.length === 0
+          ) {
+            const history =
+              await getHistory(
+                true
+              );
+
+            colors =
+              sortRoundsAscending(
+                history.items
+              ).map(
+                x =>
+                  x.color
               );
           }
 
-          const result =
-            await analyze(
-              payload
-            );
-
-          const safeResult =
-            sanitizeAnalysisForOutput(
-              result
-            );
-
-          sendJson(
-            res,
-            200,
-            safeResult
-          );
-        } catch (err) {
-          console.log(
-            "[api/ai]",
-            err.message
-          );
-
-          sendJson(
-            res,
-            500,
-            {
-              ok: false,
-
-              error:
-                err.message,
-
-              entrada:
-                null,
-
-              nextEntry:
-                null,
-
-              suggestion:
-                null,
-
-              signal:
-                null,
-
-              color:
-                null,
-
-              currentEntry:
-                null,
-
-              entry:
-                null,
-
-              displayEntry:
-                null,
-
-              canEnter:
-                false,
-
-              sinal:
-                false,
-
-              hasSignal:
-                false,
-
-              status:
-                "NO_SIGNAL",
-
-              conf:
-                0,
-
-              confidence:
-                0,
-
-              qualidade:
-                0,
-
-              quality:
-                0,
-
-              consenso:
-                0,
-
-              consensus:
-                0,
-
-              consensusPct:
-                0,
-
-              consensusVotes:
-                0,
-
-              consensusTotal:
-                0,
-
-              consensusVotePct:
-                0,
-
-              marginPct:
-                0,
-
-              stabilityPct:
-                0,
-
-              blockers:
-                [
-                  "ERRO_ANALISE"
-                ],
-
-              bloqueios:
-                [
-                  "ERRO_ANALISE"
-                ],
-
-              blockerDescriptions:
-                [
-                  "Erro durante a análise"
-                ],
-
-              pendentes:
-                ROUND.pending
-                  ? 1
-                  : 0,
-
-              pending:
-                buildPendingOutput(),
-
-              performance:
-                performanceStats()
-            }
-          );
-        }
-
-        return;
-      }
-
-      if (
-        url.pathname ===
-        "/api/performance"
-      ) {
-        sendJson(
-          res,
-          200,
-          {
-            ok: true,
-
-            version:
-              VERSION,
-
-            ...performanceStats()
-          }
-        );
-
-        return;
-      }
-
-      if (
-        url.pathname ===
-        "/api/book"
-      ) {
-        const pending =
-          buildPendingOutput();
-
-        sendJson(
-          res,
-          200,
-          {
-            ok: true,
-
-            version:
-              VERSION,
-
-            ...performanceStats(),
-
-            wins:
-              PERFORMANCE.wins,
-
-            losses:
-              PERFORMANCE.losses,
-
-            acertos:
-              PERFORMANCE.wins,
-
-            erros:
-              PERFORMANCE.losses,
-
-            pendentes:
-              pending
-                ? 1
-                : 0,
-
-            pending,
-
-            book:
-              ROUND.book.slice(
-                0,
-                100
-              )
-          }
-        );
-
-        return;
-      }
-
-      if (
-        url.pathname ===
-        "/api/regime"
-      ) {
-        try {
-          const h =
-            await getHistory();
-
-          const colors =
-            sortRoundsAscending(
-              h.items
-            ).map(
-              x =>
-                x.color
-            );
-
-          sendJson(
-            res,
-            200,
-            {
-              ok: true,
-
-              ...getRegime(
-                colors
-              )
-            }
-          );
-        } catch (err) {
-          sendJson(
-            res,
-            500,
-            {
-              ok: false,
-
-              error:
-                err.message
-            }
-          );
-        }
-
-        return;
-      }
-
-      if (
-        url.pathname ===
-        "/api/backtest"
-      ) {
-        try {
-          const h =
-            await getHistory(
-              true
-            );
-
-          const colors =
-            sortRoundsAscending(
-              h.items
-            ).map(
-              x =>
-                x.color
-            );
-
-          const bt =
-            backtest(
+          const analysis =
+            analyzeColors(
               colors
             );
 
@@ -5872,510 +4263,409 @@ const server =
             res,
             200,
             {
-              ok: true,
+              ok:
+                true,
 
-              version:
-                VERSION,
-
-              ...bt,
-
-              adaptiveConfig: {
-                normalHistoricalMinimum:
-                  CONFIG.MIN_BACKTEST_RATE,
-
-                normalRecentMinimum:
-                  CONFIG.MIN_RECENT_RATE,
-
-                strongConsensus:
-                  CONFIG.STRONG_SIGNAL_CONSENSUS,
-
-                strongVotePct:
-                  CONFIG.STRONG_SIGNAL_VOTE_PCT,
-
-                strongMargin:
-                  CONFIG.STRONG_SIGNAL_MARGIN,
-
-                strongStability:
-                  CONFIG.STRONG_SIGNAL_STABILITY,
-
-                strongQuality:
-                  CONFIG.STRONG_SIGNAL_QUALITY,
-
-                strongMinVotes:
-                  CONFIG.STRONG_SIGNAL_MIN_VOTES,
-
-                adaptiveHistoricalFloor:
-                  CONFIG.STRONG_SIGNAL_MIN_BACKTEST,
-
-                adaptiveRecentFloor:
-                  CONFIG.STRONG_SIGNAL_MIN_RECENT
-              }
+              analysis
             }
           );
-        } catch (err) {
-          sendJson(
-            res,
-            500,
-            {
-              ok: false,
 
-              error:
-                err.message
-            }
-          );
+          return;
         }
 
-        return;
-      }
+        /*
+        ------------------------------------------------------
+        AI
+        ------------------------------------------------------
+        */
 
-      if (
-        url.pathname ===
-        "/api/reset"
-      ) {
-        PERFORMANCE.total =
-          0;
+        if (
+          pathname ===
+            "/api/ai" &&
+          req.method ===
+            "POST"
+        ) {
+          const body =
+            await readBody(
+              req
+            );
 
-        PERFORMANCE.wins =
-          0;
+          let colors =
+            Array.isArray(
+              body.colors
+            )
+              ? body.colors
+                  .map(
+                    normalizeColor
+                  )
+                  .filter(Boolean)
+              : [];
 
-        PERFORMANCE.losses =
-          0;
+          if (
+            colors.length === 0
+          ) {
+            const history =
+              await getHistory(
+                true
+              );
 
-        PERFORMANCE.history =
-          [];
+            colors =
+              sortRoundsAscending(
+                history.items
+              ).map(
+                x =>
+                  x.color
+              );
+          }
 
-        ROUND.fingerprint =
-          null;
+          const analysis =
+            analyzeColors(
+              colors
+            );
 
-        ROUND.pending =
-          null;
+          const ai =
+            await askAI(
+              analysis,
+              {
+                colors
+              }
+            );
 
-        ROUND.lastResult =
-          null;
+          /*
+          A IA nunca transforma
+          NO_SIGNAL em SIGNAL.
+          */
 
-        ROUND.lastAnalysis =
-          null;
+          let finalAnalysis =
+            analysis;
 
-        ROUND.analyzing =
-          false;
+          if (
+            analysis.signal !==
+              "SIGNAL"
+          ) {
+            finalAnalysis = {
+              ...analysis,
 
-        ROUND.analyzePromise =
-          null;
+              aiSignal:
+                false,
 
-        ROUND.book =
-          [];
+              ai:
+                ai
+            };
+          } else {
+            finalAnalysis = {
+              ...analysis,
 
-        MODEL_COOLDOWN.clear();
+              ai:
+                ai,
 
-        historyCache = {
-          data: null,
-          time: 0
-        };
+              aiSignal:
+                Boolean(
+                  ai.validated
+                )
+            };
+          }
+
+          sendJson(
+            res,
+            200,
+            {
+              ok:
+                true,
+
+              analysis:
+                finalAnalysis,
+
+              ai
+            }
+          );
+
+          return;
+        }
+
+        /*
+        ------------------------------------------------------
+        PERFORMANCE
+        ------------------------------------------------------
+        */
+
+        if (
+          pathname ===
+            "/api/performance" &&
+          req.method ===
+            "GET"
+        ) {
+          sendJson(
+            res,
+            200,
+            {
+              ok:
+                true,
+
+              performance:
+                performanceData()
+            }
+          );
+
+          return;
+        }
+
+        /*
+        ------------------------------------------------------
+        RESET
+        ------------------------------------------------------
+        */
+
+        if (
+          pathname ===
+            "/api/reset" &&
+          req.method ===
+            "POST"
+        ) {
+          PERFORMANCE.total =
+            0;
+
+          PERFORMANCE.wins =
+            0;
+
+          PERFORMANCE.losses =
+            0;
+
+          PERFORMANCE.pushes =
+            0;
+
+          PERFORMANCE.history =
+            [];
+
+          sendJson(
+            res,
+            200,
+            {
+              ok:
+                true,
+
+              message:
+                "Performance resetada."
+            }
+          );
+
+          return;
+        }
+
+        /*
+        ------------------------------------------------------
+        SOURCE TEST
+        ------------------------------------------------------
+        */
+
+        if (
+          pathname ===
+            "/api/source-test" &&
+          req.method ===
+            "GET"
+        ) {
+          const result = {
+            ok:
+              false,
+
+            source:
+              null,
+
+            count:
+              0,
+
+            error:
+              null
+          };
+
+          try {
+            const history =
+              await getHistory(
+                true
+              );
+
+            result.ok =
+              true;
+
+            result.source =
+              history.source;
+
+            result.count =
+              history.items.length;
+          } catch (err) {
+            result.error =
+              err.message;
+          }
+
+          sendJson(
+            res,
+            result.ok
+              ? 200
+              : 502,
+            result
+          );
+
+          return;
+        }
+
+        /*
+        ------------------------------------------------------
+        STATIC
+        ------------------------------------------------------
+        */
+
+        if (
+          req.method ===
+          "GET"
+        ) {
+          serveStatic(
+            req,
+            res,
+            pathname
+          );
+
+          return;
+        }
 
         sendJson(
           res,
-          200,
+          404,
           {
-            ok: true,
+            ok:
+              false,
 
-            message:
-              "Sistema resetado.",
-
-            performance:
-              performanceStats()
+            error:
+              "Rota não encontrada"
           }
         );
-
-        return;
-      }
-
-      let file;
-
-      try {
-        file =
-          decodeURIComponent(
-            url.pathname
-          );
-      } catch (_) {
-        file =
-          "/index.html";
-      }
-
-      if (
-        file === "/"
-      ) {
-        file =
-          "/index.html";
-      }
-
-      const fullPath =
-        path.normalize(
-          path.join(
-            ROOT,
-            file
-          )
+      } catch (err) {
+        console.error(
+          "[SERVER ERROR]",
+          err
         );
 
-      if (
-        !fullPath.startsWith(
-          path.normalize(
-            ROOT +
-              path.sep
-          )
-        )
-      ) {
-        res.writeHead(
-          403
-        );
+        sendJson(
+          res,
+          500,
+          {
+            ok:
+              false,
 
-        res.end(
-          "Forbidden"
-        );
-
-        return;
-      }
-
-      fs.readFile(
-        fullPath,
-        (
-          err,
-          data
-        ) => {
-          if (err) {
-            res.writeHead(
-              404
-            );
-
-            res.end(
-              "Not Found"
-            );
-
-            return;
+            error:
+              err.message ||
+              "Erro interno"
           }
-
-          const ext =
-            path.extname(
-              fullPath
-            ).toLowerCase();
-
-          res.writeHead(
-            200,
-            {
-              "Content-Type":
-                MIME[ext] ||
-                "application/octet-stream",
-
-              "Cache-Control":
-                ext === ".html" ||
-                ext === ".js"
-                  ? "no-cache"
-                  : "public,max-age=3600"
-            }
-          );
-
-          res.end(
-            data
-          );
-        }
-      );
+        );
+      }
     }
   );
 
-/* ============================================================
-   ERRO
-============================================================ */
+/*
+============================================================
+ START
+============================================================
+*/
 
-server.on(
-  "error",
-  err => {
-    console.error(
-      "[server]",
-      err.message
+server.listen(
+  PORT,
+  HOST,
+  () => {
+    console.log(
+      "================================================="
+    );
+
+    console.log(
+      " RIFT DOUBLE RADAR ONLINE"
+    );
+
+    console.log(
+      ` Versão: ${VERSION}`
+    );
+
+    console.log(
+      ` Porta: ${PORT}`
+    );
+
+    console.log(
+      ` Host: ${HOST}`
+    );
+
+    console.log(
+      ` Node: ${process.version}`
+    );
+
+    console.log(
+      "================================================="
+    );
+
+    console.log(
+      "API:"
+    );
+
+    console.log(
+      "  /health"
+    );
+
+    console.log(
+      "  /api/status"
+    );
+
+    console.log(
+      "  /api/history"
+    );
+
+    console.log(
+      "  /api/live"
+    );
+
+    console.log(
+      "  /api/analyze"
+    );
+
+    console.log(
+      "  /api/ai"
+    );
+
+    console.log(
+      "  /api/performance"
+    );
+
+    console.log(
+      "  /api/reset"
+    );
+
+    console.log(
+      "  /api/source-test"
+    );
+
+    console.log(
+      "================================================="
     );
   }
 );
 
-/* ============================================================
-   START
-============================================================ */
+/*
+============================================================
+ ERROS GLOBAIS
+============================================================
+*/
 
-server.listen(
-  PORT,
-  "0.0.0.0",
-  () => {
-    console.log("");
-
-    console.log(
-      "=================================================="
+process.on(
+  "uncaughtException",
+  err => {
+    console.error(
+      "[uncaughtException]",
+      err
     );
+  }
+);
 
-    console.log(
-      "        RIFT DOUBLE RADAR V4.1.3"
+process.on(
+  "unhandledRejection",
+  err => {
+    console.error(
+      "[unhandledRejection]",
+      err
     );
-
-    console.log(
-      "           ADAPTIVE ENGINE"
-    );
-
-    console.log(
-      "=================================================="
-    );
-
-    console.log(
-      `Servidor: http://localhost:${PORT}`
-    );
-
-    const ai =
-      activeAI();
-
-    console.log(
-      "IA:",
-      ai
-        ? `${ai.name} / ${ai.model}`
-        : "LOCAL"
-    );
-
-    console.log(
-      "Entrada:",
-      "ATIVA"
-    );
-
-    console.log(
-      "Ensemble adaptativo:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Pesos por desempenho:",
-      "ATIVOS"
-    );
-
-    console.log(
-      "Walk-forward:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Backtest recente:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Backtest histórico:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Backtest adaptativo:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Detector de regime:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Detector de estabilidade:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Margem de consenso:",
-      "ATIVA"
-    );
-
-    console.log(
-      "Filtro NO SIGNAL:",
-      "ADAPTATIVO"
-    );
-
-    console.log(
-      "Diagnóstico de bloqueios:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Proteção estabilidade 0%:",
-      "ATIVA"
-    );
-
-    console.log(
-      "Proteção Branco:",
-      "ATIVA"
-    );
-
-    console.log(
-      "IA como validadora:",
-      "ATIVA"
-    );
-
-    console.log(
-      "WIN/LOSS:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Livro:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Performance:",
-      "ATIVA"
-    );
-
-    console.log(
-      "14 estratégias:",
-      "ATIVAS"
-    );
-
-    console.log(
-      "Force re-analysis:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Analysis lock:",
-      "ATIVO"
-    );
-
-    console.log(
-      "Liquidação pela próxima rodada:",
-      "ATIVA"
-    );
-
-    console.log(
-      "Proteção entrada sem sinal:",
-      "ATIVA"
-    );
-
-    console.log(
-      "=================================================="
-    );
-
-    console.log("");
-
-    console.log(
-      "[CONFIG]",
-      `mínimo histórico=${CONFIG.MIN_HISTORY_SIGNAL}`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `mínimo consenso=${CONFIG.MIN_CONSENSUS_PCT}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `mínima margem=${CONFIG.MIN_MARGIN_PCT}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `mínima estabilidade=${CONFIG.MIN_STABILITY_PCT}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `qualidade mínima=${CONFIG.MIN_QUALITY}`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `backtest mínimo=${CONFIG.MIN_BACKTEST_RATE}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `backtest recente mínimo=${CONFIG.MIN_RECENT_RATE}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `backtest adaptativo histórico >= ${CONFIG.STRONG_SIGNAL_MIN_BACKTEST}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `backtest adaptativo recente >= ${CONFIG.STRONG_SIGNAL_MIN_RECENT}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `sinal forte consenso >= ${CONFIG.STRONG_SIGNAL_CONSENSUS}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `sinal forte votos >= ${CONFIG.STRONG_SIGNAL_VOTE_PCT}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `sinal forte margem >= ${CONFIG.STRONG_SIGNAL_MARGIN}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `sinal forte estabilidade >= ${CONFIG.STRONG_SIGNAL_STABILITY}%`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `sinal forte qualidade >= ${CONFIG.STRONG_SIGNAL_QUALITY}`
-    );
-
-    console.log(
-      "[CONFIG]",
-      `sinal forte mínimo de votos=${CONFIG.STRONG_SIGNAL_MIN_VOTES}`
-    );
-
-    console.log(
-      "[CONFIG]",
-      "backtest histórico = 1%"
-    );
-
-    console.log(
-      "[CONFIG]",
-      "backtest recente = 1%"
-    );
-
-    console.log(
-      "[CONFIG]",
-      "piso adaptativo histórico = 1%"
-    );
-
-    console.log(
-      "[CONFIG]",
-      "piso adaptativo recente = 1%"
-    );
-
-    console.log(
-      "[CONFIG]",
-      "diagnóstico de bloqueios=ATIVO"
-    );
-
-    console.log(
-      "[CONFIG]",
-      "estabilidade 0% = BLOQUEIO"
-    );
-
-    console.log(
-      "[CONFIG]",
-      "backtest adaptativo = ATIVO"
-    );
-
-    console.log("");
-
-    console.log(
-      "⚠️ BACKTEST CONFIGURADO EM 1%"
-    );
-
-    console.log(
-      "⚠️ O backtest deixa de ser um filtro forte de qualidade."
-    );
-
-    console.log("");
   }
 );
