@@ -32,17 +32,16 @@ const { URL } = require("url");
 ============================================================
 */
 
-const PORT = Number(process.env.PORT || 3000);
-const HOST = "0.0.0.0";
-
-/*
- IMPORTANTE:
- ROOT precisa existir antes de qualquer função
- que utilize os arquivos do projeto.
-*/
 const ROOT = __dirname;
 
-const VERSION = "RIFT Double Radar ONLINE 5.0.1";
+const PORT = Number(
+  process.env.PORT || 3000
+);
+
+const HOST = "0.0.0.0";
+
+const VERSION =
+  "RIFT Double Radar ONLINE 5.0.1";
 
 /*
 ============================================================
@@ -60,75 +59,40 @@ const BLAZE_URLS = [
 
 /*
 ============================================================
- CONFIGURAÇÃO DO RADAR
+ CONFIGURAÇÃO DA ANÁLISE
 ============================================================
 */
 
 const CONFIG = {
   MIN_HISTORY_SIGNAL: 30,
-
   MIN_ACTIVE_STRATEGIES: 4,
-
   MIN_VOTES: 3,
-
   MIN_CONSENSUS_PCT: 55,
-
   MIN_VOTE_PCT: 50,
-
   MIN_MARGIN_PCT: 8,
-
   MIN_STABILITY_PCT: 50,
-
   MIN_QUALITY: 55,
 
-  /*
-  Backtest
-  */
-
   MIN_BACKTEST_RATE: 1,
-
   MIN_RECENT_RATE: 1,
 
-  /*
-  Sinal forte
-  */
-
   STRONG_SIGNAL_CONSENSUS: 75,
-
   STRONG_SIGNAL_VOTE_PCT: 65,
-
   STRONG_SIGNAL_MARGIN: 20,
-
   STRONG_SIGNAL_STABILITY: 75,
-
   STRONG_SIGNAL_QUALITY: 70,
-
   STRONG_SIGNAL_MIN_VOTES: 5,
-
   STRONG_SIGNAL_MIN_BACKTEST: 1,
-
   STRONG_SIGNAL_MIN_RECENT: 1,
 
-  /*
-  Janelas
-  */
-
   RECENT_WINDOW: 60,
-
   LONG_WINDOW: 180,
 
-  /*
-  Suavização
-  */
-
   PRIOR_RATE: 50,
-
   PRIOR_STRENGTH: 12,
 
   MAX_WEIGHT_FACTOR: 1.45,
-
   MIN_WEIGHT_FACTOR: 0.45,
-
   WHITE_MAX_WEIGHT: 0.90
 };
 
@@ -143,10 +107,12 @@ const GROQ_DEFAULT_MODEL =
   "openai/gpt-oss-20b";
 
 const GROQ_API_KEY =
-  process.env.GROQ_API_KEY || "";
+  process.env.GROQ_API_KEY ||
+  "";
 
 const XAI_API_KEY =
-  process.env.XAI_API_KEY || "";
+  process.env.XAI_API_KEY ||
+  "";
 
 const XAI_MODEL =
   process.env.XAI_MODEL ||
@@ -163,7 +129,7 @@ const MODEL_COOLDOWN =
 
 /*
 ============================================================
- UTILITÁRIOS HTTP
+ HTTP REQUEST
 ============================================================
 */
 
@@ -196,7 +162,8 @@ function requestUrl(
         "GET";
 
       const body =
-        options.body || "";
+        options.body ||
+        "";
 
       const timeout =
         options.timeout ||
@@ -205,12 +172,16 @@ function requestUrl(
       const headers = {
         "User-Agent":
           "Mozilla/5.0 RIFT-Double-Radar",
+
         "Accept":
           "application/json, text/plain, */*",
+
         "Cache-Control":
           "no-cache",
+
         "Pragma":
           "no-cache",
+
         ...(options.headers || {})
       };
 
@@ -223,7 +194,9 @@ function requestUrl(
         headers[
           "Content-Length"
         ] =
-          Buffer.byteLength(body);
+          Buffer.byteLength(
+            body
+          );
       }
 
       const req =
@@ -307,6 +280,12 @@ function requestUrl(
   );
 }
 
+/*
+============================================================
+ FETCH JSON
+============================================================
+*/
+
 async function fetchJson(
   url,
   timeout = 15000
@@ -342,6 +321,12 @@ async function fetchJson(
     );
   }
 }
+
+/*
+============================================================
+ POST JSON
+============================================================
+*/
 
 async function postJson(
   url,
@@ -488,7 +473,6 @@ function extractArray(
     json?.results,
     json?.items,
     json?.history,
-
     json?.data?.rounds,
     json?.data?.results,
     json?.data?.items,
@@ -645,11 +629,14 @@ let historyCache = {
 };
 
 let sourceStatus = {
-  source: null,
+  source:
+    null,
 
-  lastSuccess: null,
+  lastSuccess:
+    null,
 
-  lastError: null,
+  lastError:
+    null,
 
   tipminer:
     "unknown",
@@ -670,12 +657,6 @@ async function getHistory(
   ) {
     return historyCache.data;
   }
-
-  /*
-  ----------------------------------------------------------
-  TIPMINER
-  ----------------------------------------------------------
-  */
 
   try {
     console.log(
@@ -753,12 +734,6 @@ async function getHistory(
       err.message
     );
   }
-
-  /*
-  ----------------------------------------------------------
-  BLAZE
-  ----------------------------------------------------------
-  */
 
   for (
     const url of BLAZE_URLS
@@ -943,11 +918,7 @@ function round1(
   );
 }
 
-/*
- IMPORTANTE:
- round3 estava sendo utilizada
- no backtest, mas não existia.
-*/
+/* CORREÇÃO: estava faltando */
 function round3(
   value
 ) {
@@ -2101,26 +2072,6 @@ function smoothedRate(
   );
 }
 
-function runStrategy(
-  name,
-  colors
-) {
-  const strategies =
-    getStrategies(
-      colors
-    );
-
-  return (
-    strategies[name] || {
-      entrada:
-        null,
-
-      score:
-        0
-    }
-  );
-}
-
 function backtest(
   colors
 ) {
@@ -2314,10 +2265,8 @@ function backtest(
         stat.taxaAjustada *
           confidenceSample +
           50 *
-            (
-              1 -
-              confidenceSample
-            )
+            (1 -
+              confidenceSample)
       );
 
     const base =
@@ -2915,14 +2864,12 @@ function analyzeColors(
   colors
 ) {
   const clean =
-    Array.isArray(colors)
-      ? colors.filter(
-          x =>
-            x === "V" ||
-            x === "P" ||
-            x === "B"
-        )
-      : [];
+    colors.filter(
+      x =>
+        x === "V" ||
+        x === "P" ||
+        x === "B"
+    );
 
   if (
     clean.length === 0
@@ -2940,17 +2887,11 @@ function analyzeColors(
       canEnter:
         false,
 
-      history:
-        0,
-
-      message:
-        "Sem histórico.",
-
       disclaimer:
         "Radar estatístico baseado em histórico e heurísticas. Não garante o próximo resultado.",
 
-      generatedAt:
-        new Date().toISOString()
+      message:
+        "Sem histórico."
     };
   }
 
@@ -3060,35 +3001,6 @@ function analyzeColors(
   ) {
     blockers.push(
       "Qualidade abaixo do mínimo"
-    );
-  }
-
-  /*
-  ----------------------------------------------------------
-  BACKTEST MÍNIMO
-  ----------------------------------------------------------
-  */
-
-  const eligibleStrategies =
-    Object.values(
-      back.stats
-    ).filter(
-      stat =>
-        stat.testes > 0 &&
-        stat.taxa >=
-          CONFIG.MIN_BACKTEST_RATE &&
-        stat.recenteTaxa >=
-          CONFIG.MIN_RECENT_RATE
-    );
-
-  if (
-    clean.length >=
-      CONFIG.MIN_HISTORY_SIGNAL &&
-    eligibleStrategies.length ===
-      0
-  ) {
-    blockers.push(
-      "Nenhuma estratégia atingiu o backtest mínimo"
     );
   }
 
@@ -3234,20 +3146,6 @@ function analyzeColors(
 
     blockers,
 
-    strongSignal:
-      consensus.consenso >=
-        CONFIG.STRONG_SIGNAL_CONSENSUS &&
-      consensus.votePct >=
-        CONFIG.STRONG_SIGNAL_VOTE_PCT &&
-      consensus.margin >=
-        CONFIG.STRONG_SIGNAL_MARGIN &&
-      stability >=
-        CONFIG.STRONG_SIGNAL_STABILITY &&
-      quality.quality >=
-        CONFIG.STRONG_SIGNAL_QUALITY &&
-      consensus.votesWinner >=
-        CONFIG.STRONG_SIGNAL_MIN_VOTES,
-
     strategies:
       strategyRows,
 
@@ -3365,34 +3263,6 @@ function performanceData() {
 
     history:
       PERFORMANCE.history
-  };
-}
-
-/*
-============================================================
- BOOK / ESTADO DA RODADA
-============================================================
-*/
-
-const BOOK = {
-  pending: null,
-
-  last: null,
-
-  updatedAt:
-    null
-};
-
-function bookData() {
-  return {
-    pending:
-      BOOK.pending,
-
-    last:
-      BOOK.last,
-
-    updatedAt:
-      BOOK.updatedAt
   };
 }
 
@@ -3913,22 +3783,24 @@ function safeFilePath(
   }
 
   const file =
-    path.resolve(
-      ROOT,
-      "." +
+    path.normalize(
+      path.join(
+        ROOT,
         relative
+      )
     );
 
-  const rootResolved =
-    path.resolve(
-      ROOT
-    );
+  const rootWithSep =
+    ROOT.endsWith(
+      path.sep
+    )
+      ? ROOT
+      : ROOT + path.sep;
 
   if (
-    file !== rootResolved &&
+    file !== ROOT &&
     !file.startsWith(
-      rootResolved +
-        path.sep
+      rootWithSep
     )
   ) {
     return null;
@@ -4064,9 +3936,9 @@ const server =
           url.pathname;
 
         /*
-        ------------------------------------------------------
+        ======================================================
         HEALTH
-        ------------------------------------------------------
+        ======================================================
         */
 
         if (
@@ -4086,16 +3958,8 @@ const server =
               version:
                 VERSION,
 
-              root:
-                path.basename(
-                  ROOT
-                ),
-
-              port:
-                PORT,
-
-              node:
-                process.version,
+              server:
+                "Railway",
 
               time:
                 new Date().toISOString()
@@ -4106,9 +3970,9 @@ const server =
         }
 
         /*
-        ------------------------------------------------------
+        ======================================================
         STATUS
-        ------------------------------------------------------
+        ======================================================
         */
 
         if (
@@ -4161,9 +4025,7 @@ const server =
                 PORT,
 
               root:
-                path.basename(
-                  ROOT
-                ),
+                ROOT,
 
               ai:
                 aiAvailable(),
@@ -4177,9 +4039,6 @@ const server =
               performance:
                 performanceData(),
 
-              book:
-                bookData(),
-
               time:
                 new Date().toISOString()
             }
@@ -4189,9 +4048,9 @@ const server =
         }
 
         /*
-        ------------------------------------------------------
+        ======================================================
         HISTORY
-        ------------------------------------------------------
+        ======================================================
         */
 
         if (
@@ -4258,9 +4117,9 @@ const server =
         }
 
         /*
-        ------------------------------------------------------
+        ======================================================
         LIVE
-        ------------------------------------------------------
+        ======================================================
         */
 
         if (
@@ -4298,9 +4157,6 @@ const server =
                 ok:
                   true,
 
-                version:
-                  VERSION,
-
                 source:
                   history.source,
 
@@ -4337,9 +4193,9 @@ const server =
         }
 
         /*
-        ------------------------------------------------------
+        ======================================================
         ANALYZE
-        ------------------------------------------------------
+        ======================================================
         */
 
         if (
@@ -4401,9 +4257,9 @@ const server =
         }
 
         /*
-        ------------------------------------------------------
-        AI
-        ------------------------------------------------------
+        ======================================================
+        IA
+        ======================================================
         */
 
         if (
@@ -4506,9 +4362,44 @@ const server =
         }
 
         /*
-        ------------------------------------------------------
+        ======================================================
+        BOOK
+        ======================================================
+        */
+
+        if (
+          pathname ===
+            "/api/book" &&
+          req.method ===
+            "GET"
+        ) {
+          sendJson(
+            res,
+            200,
+            {
+              ok:
+                true,
+
+              book: [],
+
+              pending:
+                null,
+
+              last:
+                null,
+
+              performance:
+                performanceData()
+            }
+          );
+
+          return;
+        }
+
+        /*
+        ======================================================
         PERFORMANCE
-        ------------------------------------------------------
+        ======================================================
         */
 
         if (
@@ -4533,83 +4424,9 @@ const server =
         }
 
         /*
-        ------------------------------------------------------
-        BOOK
-        ------------------------------------------------------
-        */
-
-        if (
-          pathname ===
-            "/api/book" &&
-          req.method ===
-            "GET"
-        ) {
-          sendJson(
-            res,
-            200,
-            {
-              ok:
-                true,
-
-              book:
-                bookData(),
-
-              performance:
-                performanceData()
-            }
-          );
-
-          return;
-        }
-
-        /*
-        ------------------------------------------------------
-        BOOK UPDATE
-        ------------------------------------------------------
-        */
-
-        if (
-          pathname ===
-            "/api/book" &&
-          req.method ===
-            "POST"
-        ) {
-          const body =
-            await readBody(
-              req
-            );
-
-          BOOK.pending =
-            body.pending ??
-            body.entry ??
-            null;
-
-          BOOK.last =
-            body.last ??
-            null;
-
-          BOOK.updatedAt =
-            new Date().toISOString();
-
-          sendJson(
-            res,
-            200,
-            {
-              ok:
-                true,
-
-              book:
-                bookData()
-            }
-          );
-
-          return;
-        }
-
-        /*
-        ------------------------------------------------------
+        ======================================================
         RESET
-        ------------------------------------------------------
+        ======================================================
         */
 
         if (
@@ -4633,15 +4450,6 @@ const server =
           PERFORMANCE.history =
             [];
 
-          BOOK.pending =
-            null;
-
-          BOOK.last =
-            null;
-
-          BOOK.updatedAt =
-            new Date().toISOString();
-
           sendJson(
             res,
             200,
@@ -4658,9 +4466,9 @@ const server =
         }
 
         /*
-        ------------------------------------------------------
+        ======================================================
         SOURCE TEST
-        ------------------------------------------------------
+        ======================================================
         */
 
         if (
@@ -4714,9 +4522,9 @@ const server =
         }
 
         /*
-        ------------------------------------------------------
-        STATIC
-        ------------------------------------------------------
+        ======================================================
+        STATIC FILES
+        ======================================================
         */
 
         if (
@@ -4732,6 +4540,12 @@ const server =
           return;
         }
 
+        /*
+        ======================================================
+        404
+        ======================================================
+        */
+
         sendJson(
           res,
           404,
@@ -4740,7 +4554,13 @@ const server =
               false,
 
             error:
-              "Rota não encontrada"
+              "Rota não encontrada",
+
+            route:
+              pathname,
+
+            method:
+              req.method
           }
         );
       } catch (err) {
@@ -4796,7 +4616,7 @@ server.listen(
     );
 
     console.log(
-      ` ROOT: ${ROOT}`
+      ` Root: ${ROOT}`
     );
 
     console.log(
@@ -4836,11 +4656,11 @@ server.listen(
     );
 
     console.log(
-      "  /api/performance"
+      "  /api/book"
     );
 
     console.log(
-      "  /api/book"
+      "  /api/performance"
     );
 
     console.log(
