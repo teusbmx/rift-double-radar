@@ -1,0 +1,3832 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+>
+
+<meta name="theme-color" content="#070b14">
+
+<title>RIFT Double Radar V3</title>
+
+<style>
+
+:root{
+  --bg:#050812;
+  --bg2:#08111d;
+  --card:#0d1725;
+  --card2:#101c2d;
+  --line:#1c2c40;
+  --txt:#edf4ff;
+  --mut:#8296ad;
+
+  --v:#ed3f4c;
+  --p:#293446;
+  --b:#f5f7fa;
+
+  --green:#2ee59d;
+  --green2:#15966d;
+  --yellow:#e7bb55;
+  --red:#ef5969;
+  --blue:#4d9cff;
+}
+
+*{
+  box-sizing:border-box;
+}
+
+html{
+  scroll-behavior:smooth;
+}
+
+body{
+  margin:0;
+  min-height:100vh;
+  color:var(--txt);
+  font-family:Inter,Segoe UI,Roboto,system-ui,sans-serif;
+  background:
+    radial-gradient(
+      900px 450px at 50% -100px,
+      #12283d 0%,
+      transparent 65%
+    ),
+    linear-gradient(180deg,#060a12,#050812);
+}
+
+button{
+  font:inherit;
+}
+
+.wrap{
+  width:min(1100px,100%);
+  margin:auto;
+  padding:18px 14px 50px;
+}
+
+/* HEADER */
+
+.header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:15px;
+  margin-bottom:16px;
+}
+
+.brand h1{
+  margin:0;
+  font-size:29px;
+  line-height:1;
+  letter-spacing:-.8px;
+}
+
+.brand h1 span{
+  color:#ff4654;
+}
+
+.brand p{
+  margin:8px 0 0;
+  color:var(--mut);
+  font-size:12px;
+}
+
+.live-pill{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid #194a3a;
+  background:#092018;
+  color:var(--green);
+  padding:7px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+.live-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 10px var(--green);
+}
+
+.live-pill.off{
+  color:#a0acb9;
+  background:#101722;
+  border-color:#253141;
+}
+
+.live-pill.off .live-dot{
+  background:#697587;
+  box-shadow:none;
+}
+
+/* BUTTONS */
+
+.toolbar{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+
+.btn{
+  border:1px solid var(--line);
+  color:var(--txt);
+  background:#111d2b;
+  border-radius:10px;
+  padding:9px 13px;
+  cursor:pointer;
+  transition:.2s;
+  font-size:12px;
+  font-weight:700;
+}
+
+.btn:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.12);
+}
+
+.btn:active{
+  transform:scale(.98);
+}
+
+.btn.primary{
+  background:#e23d4a;
+  border-color:#e23d4a;
+}
+
+.btn.success{
+  background:#16865e;
+  border-color:#16865e;
+}
+
+.btn.blue{
+  background:#245f9d;
+  border-color:#3476bb;
+}
+
+.btn:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+  transform:none;
+}
+
+/* GRID */
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:9px;
+}
+
+.stat{
+  background:linear-gradient(180deg,#101b2a,#0c1522);
+  border:1px solid var(--line);
+  border-radius:13px;
+  padding:11px;
+  min-width:0;
+}
+
+.stat-label{
+  color:var(--mut);
+  font-size:10px;
+  letter-spacing:.7px;
+  font-weight:700;
+}
+
+.stat-value{
+  display:block;
+  margin-top:4px;
+  font-size:20px;
+  font-weight:850;
+}
+
+.stat-value.small{
+  font-size:15px;
+}
+
+/* HISTORY */
+
+.card{
+  background:linear-gradient(180deg,#0d1725,#0b1420);
+  border:1px solid var(--line);
+  border-radius:15px;
+  margin-top:12px;
+  padding:13px;
+}
+
+.card-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.card-title{
+  font-size:12px;
+  color:#a9b9ca;
+  font-weight:800;
+}
+
+.card-meta{
+  font-size:10px;
+  color:#62778e;
+}
+
+.dots{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+}
+
+.dot{
+  width:29px;
+  height:29px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  font-size:10px;
+  font-weight:850;
+  user-select:none;
+}
+
+.dot.V{
+  background:var(--v);
+  color:white;
+  box-shadow:0 0 10px #ed3f4c18;
+}
+
+.dot.P{
+  background:#283244;
+  border:1px solid #3b485c;
+  color:#c5cfdd;
+}
+
+.dot.B{
+  background:#f2f4f7;
+  color:#171b21;
+}
+
+/* MAIN AI */
+
+.ai{
+  position:relative;
+  overflow:hidden;
+  text-align:center;
+  margin-top:12px;
+  border:1px solid #164333;
+  border-radius:18px;
+  padding:20px 14px 22px;
+  background:
+    radial-gradient(
+      circle at 50% 15%,
+      #12412f 0%,
+      transparent 38%
+    ),
+    linear-gradient(180deg,#0a1b16,#09110f);
+}
+
+.ai::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(
+      115deg,
+      transparent 25%,
+      #2ee59d06 50%,
+      transparent 75%
+    );
+}
+
+.ai-top{
+  position:relative;
+  z-index:2;
+}
+
+.ai-label{
+  color:var(--green);
+  font-size:11px;
+  font-weight:850;
+  letter-spacing:2px;
+}
+
+.ai-label.pulse{
+  animation:pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse{
+  0%,100%{opacity:1}
+  50%{opacity:.35}
+}
+
+.ai-model{
+  margin-top:4px;
+  color:#638374;
+  font-size:10px;
+}
+
+.analysis-text{
+  min-height:19px;
+  margin-top:12px;
+  color:#91b4a7;
+  font-size:11px;
+  font-weight:700;
+}
+
+.progress{
+  width:min(500px,90%);
+  height:4px;
+  margin:8px auto 0;
+  border-radius:99px;
+  background:#172920;
+  overflow:hidden;
+  opacity:0;
+  transition:.3s;
+}
+
+.progress.active{
+  opacity:1;
+}
+
+.progress-bar{
+  width:0;
+  height:100%;
+  border-radius:99px;
+  background:
+    linear-gradient(
+      90deg,
+      #137c59,
+      #2ee59d,
+      #a0ffd4
+    );
+  box-shadow:0 0 12px #2ee59d88;
+  transition:width .35s ease;
+}
+
+/* ORB */
+
+.orb{
+  position:relative;
+  width:170px;
+  height:170px;
+  margin:18px auto 13px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  border:8px solid #19382f;
+  border-top-color:var(--green);
+  box-shadow:
+    0 0 45px #2ee59d25,
+    inset 0 0 30px #2ee59d0d;
+}
+
+.orb::before{
+  content:"";
+  position:absolute;
+  inset:12px;
+  border-radius:50%;
+  border:1px solid #2ee59d22;
+}
+
+.orb::after{
+  content:"";
+  position:absolute;
+  width:7px;
+  height:7px;
+  top:11px;
+  left:50%;
+  transform:translateX(-50%);
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:
+    0 0 12px var(--green),
+    0 0 28px var(--green);
+}
+
+.orb-inner{
+  position:relative;
+  z-index:3;
+  display:grid;
+  place-items:center;
+}
+
+.orb strong{
+  font-size:36px;
+  line-height:1;
+}
+
+.orb small{
+  display:block;
+  margin-top:7px;
+  color:#78998c;
+  font-size:10px;
+}
+
+.orb.analyzing{
+  animation:
+    spin .85s linear infinite,
+    glow 1.1s ease-in-out infinite;
+}
+
+.orb.analyzing .orb-inner{
+  animation:spinReverse .85s linear infinite;
+}
+
+.orb.waiting{
+  animation:spin 2.8s linear infinite;
+}
+
+.orb.waiting .orb-inner{
+  animation:spinReverse 2.8s linear infinite;
+}
+
+.orb.done{
+  animation:success .55s ease;
+  border-color:#194335;
+  border-top-color:var(--green);
+}
+
+@keyframes spin{
+  to{transform:rotate(360deg)}
+}
+
+@keyframes spinReverse{
+  to{transform:rotate(-360deg)}
+}
+
+@keyframes glow{
+  50%{filter:brightness(1.28)}
+}
+
+@keyframes success{
+  0%{transform:scale(.94)}
+  50%{transform:scale(1.07)}
+  100%{transform:scale(1)}
+}
+
+/* ENTRADA */
+
+.foco{
+  position:relative;
+  z-index:2;
+  font-size:23px;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+
+.foco.V{
+  color:var(--v);
+}
+
+.foco.P{
+  color:#d5deeb;
+}
+
+.foco.B{
+  color:white;
+}
+
+.motivo{
+  position:relative;
+  z-index:2;
+  max-width:700px;
+  margin:7px auto 0;
+  min-height:17px;
+  color:#91a99f;
+  font-size:11px;
+  line-height:1.5;
+}
+
+/* ANALYTICS */
+
+.analytics{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-top:15px;
+}
+
+.metric{
+  background:#09150f;
+  border:1px solid #17382d;
+  border-radius:11px;
+  padding:10px;
+  text-align:left;
+}
+
+.metric label{
+  display:block;
+  color:#668176;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.5px;
+}
+
+.metric strong{
+  display:block;
+  margin-top:4px;
+  font-size:15px;
+}
+
+.metric .green{
+  color:var(--green);
+}
+
+.metric .yellow{
+  color:var(--yellow);
+}
+
+.metric .red{
+  color:var(--red);
+}
+
+/* SIGNAL */
+
+.signal{
+  margin-top:12px;
+  padding:16px;
+  border-radius:15px;
+  background:
+    linear-gradient(
+      180deg,
+      #101a28,
+      #0d1723
+    );
+  border:1px solid var(--line);
+  transition:.3s;
+}
+
+.signal.ready{
+  border-color:#245641;
+  box-shadow:0 0 30px #2ee59d0b;
+}
+
+.signal.no-signal{
+  border-color:#59451e;
+  box-shadow:0 0 25px #e7bb5508;
+}
+
+.signal-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+}
+
+.signal-label{
+  color:#71869c;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.6px;
+}
+
+.status-badge{
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:9px;
+  font-weight:900;
+  background:#182433;
+  color:#a9b9c8;
+}
+
+.status-badge.good{
+  color:var(--green);
+  background:#09271c;
+}
+
+.status-badge.warn{
+  color:var(--yellow);
+  background:#2b2110;
+}
+
+.signal h2{
+  margin:8px 0 5px;
+  font-size:27px;
+}
+
+.signal h2.V{
+  color:var(--v);
+}
+
+.signal h2.P{
+  color:#dce5f0;
+}
+
+.signal h2.B{
+  color:#fff;
+}
+
+.signal-sub{
+  color:#8b9bae;
+  font-size:11px;
+  line-height:1.5;
+}
+
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:10px;
+}
+
+.chip{
+  padding:5px 8px;
+  border-radius:999px;
+  background:#172434;
+  color:#9caec1;
+  font-size:10px;
+  font-weight:700;
+}
+
+.chip.green{
+  background:#0b2b20;
+  color:var(--green);
+}
+
+.chip.yellow{
+  background:#2b2211;
+  color:var(--yellow);
+}
+
+.padroes{
+  margin-top:12px;
+  color:#9babbc;
+  font-size:11px;
+  line-height:1.7;
+}
+
+/* SECONDARY GRID */
+
+.bottom-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:12px;
+}
+
+.section-title{
+  color:#9badc0;
+  font-size:11px;
+  font-weight:850;
+  margin-bottom:9px;
+}
+
+.regime{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px;
+  background:#0b1420;
+  border:1px solid var(--line);
+  border-radius:11px;
+}
+
+.regime-name{
+  font-size:15px;
+  font-weight:900;
+}
+
+.regime-score{
+  color:var(--green);
+  font-size:12px;
+  font-weight:800;
+}
+
+.reasons{
+  margin-top:9px;
+  color:#71859a;
+  font-size:10px;
+  line-height:1.6;
+}
+
+/* CONSENSUS */
+
+.consensus-list{
+  display:grid;
+  gap:6px;
+  max-height:390px;
+  overflow:auto;
+  padding-right:2px;
+}
+
+.consensus-row{
+  display:grid;
+  grid-template-columns:minmax(95px,1.15fr) 1fr 48px;
+  gap:7px;
+  align-items:center;
+  font-size:10px;
+  color:#91a3b6;
+}
+
+.consensus-row span:first-child{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.consensus-bar{
+  height:6px;
+  border-radius:99px;
+  background:#182433;
+  overflow:hidden;
+}
+
+.consensus-fill{
+  height:100%;
+  border-radius:99px;
+  background:var(--green);
+  transition:width .35s ease;
+}
+
+.consensus-empty{
+  color:#64778a;
+  text-align:center;
+  padding:12px 4px;
+  font-size:10px;
+}
+
+/* BOOK */
+
+.wl{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-top:12px;
+}
+
+.wl .stat b{
+  display:block;
+  margin-top:4px;
+  font-size:20px;
+}
+
+.wl .ok{
+  color:var(--green);
+}
+
+.wl .bad{
+  color:var(--red);
+}
+
+.book{
+  margin-top:10px;
+  max-height:300px;
+  overflow:auto;
+  border-top:1px solid #152333;
+  padding-top:8px;
+  color:#708499;
+  font-size:10px;
+  line-height:1.8;
+}
+
+.book-row{
+  padding:7px 9px;
+  margin-bottom:5px;
+  border-radius:8px;
+  border-left:3px solid #334255;
+  background:#0b1420;
+}
+
+.book-row.win{
+  color:#2ee59d;
+  border-left-color:#2ee59d;
+  background:rgba(46,229,157,.055);
+}
+
+.book-row.loss{
+  color:#ef5969;
+  border-left-color:#ef5969;
+  background:rgba(239,89,105,.055);
+}
+
+.book-row.pending{
+  color:#e7bb55;
+  border-left-color:#e7bb55;
+  background:rgba(231,187,85,.05);
+}
+
+.book-time{
+  color:#71859a;
+}
+
+.book-entry{
+  font-weight:900;
+}
+
+.book-result{
+  font-weight:900;
+}
+
+.book-status{
+  font-weight:900;
+}
+
+.book-status.win{
+  color:#2ee59d;
+}
+
+.book-status.loss{
+  color:#ef5969;
+}
+
+.book-status.pending{
+  color:#e7bb55;
+}
+
+/* FOOTER */
+
+.footer-note{
+  margin-top:14px;
+  color:#4f6277;
+  font-size:9px;
+  text-align:center;
+  line-height:1.6;
+}
+
+/* MOBILE */
+
+@media(max-width:850px){
+
+  .grid{
+    grid-template-columns:repeat(3,1fr);
+  }
+
+  .analytics{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+}
+
+@media(max-width:600px){
+
+  .wrap{
+    padding:13px 9px 35px;
+  }
+
+  .header{
+    align-items:center;
+  }
+
+  .brand h1{
+    font-size:23px;
+  }
+
+  .brand p{
+    font-size:10px;
+  }
+
+  .live-pill{
+    font-size:9px;
+    padding:6px 8px;
+  }
+
+  .toolbar{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+
+  .btn{
+    width:100%;
+    padding:10px 8px;
+    font-size:11px;
+  }
+
+  .grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .stat-value{
+    font-size:17px;
+  }
+
+  .dot{
+    width:27px;
+    height:27px;
+  }
+
+  .orb{
+    width:145px;
+    height:145px;
+  }
+
+  .orb strong{
+    font-size:31px;
+  }
+
+  .foco{
+    font-size:20px;
+  }
+
+  .bottom-grid{
+    grid-template-columns:1fr;
+  }
+
+  .wl{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .signal h2{
+    font-size:23px;
+  }
+
+  .consensus-row{
+    grid-template-columns:95px 1fr 45px;
+  }
+
+}
+
+@media(max-width:360px){
+
+  .grid{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .orb{
+    width:130px;
+    height:130px;
+  }
+
+  .analytics{
+    grid-template-columns:1fr 1fr;
+  }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <div class="header">
+
+    <div class="brand">
+
+      <h1>
+        RIFT <span>Double Radar</span>
+      </h1>
+
+      <p>
+        Radar estatístico · análise local · consenso de estratégias
+      </p>
+
+    </div>
+
+    <div class="live-pill" id="livePill">
+
+      <span class="live-dot"></span>
+
+      <span id="livePillText">
+        AO VIVO
+      </span>
+
+    </div>
+
+  </div>
+
+
+  <div class="toolbar">
+
+    <button
+      class="btn primary"
+      onclick="forceDemo()"
+    >
+      🎲 Gerar demo RNG
+    </button>
+
+    <button
+      class="btn success"
+      id="btnLive"
+      onclick="toggleLive()"
+    >
+      ⏸ Parar ao vivo
+    </button>
+
+    <button
+      class="btn blue"
+      id="btnAI"
+      onclick="forceAI()"
+    >
+      🧠 Analisar agora
+    </button>
+
+    <button
+      class="btn"
+      onclick="manualRefresh()"
+    >
+      ↻ Atualizar
+    </button>
+
+  </div>
+
+
+  <div class="grid">
+
+    <div class="stat">
+      <div class="stat-label">RODADAS</div>
+      <span class="stat-value" id="nRod">0</span>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">VERMELHO</div>
+      <span class="stat-value" id="nV">0</span>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">PRETO</div>
+      <span class="stat-value" id="nP">0</span>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">BRANCO</div>
+      <span class="stat-value" id="nB">0</span>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">STREAK</div>
+      <span class="stat-value small" id="nSt">—</span>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">GAP BRANCO</div>
+      <span class="stat-value" id="nGap">0</span>
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="card-head">
+
+      <div class="card-title">
+        HISTÓRICO RECENTE
+      </div>
+
+      <div class="card-meta" id="grafOk">
+        aguardando dados
+      </div>
+
+    </div>
+
+    <div class="dots" id="dots"></div>
+
+  </div>
+
+
+  <div class="ai">
+
+    <div class="ai-top">
+
+      <div class="ai-label" id="aiLab">
+        RIFT ANALYZER
+      </div>
+
+      <div class="ai-model" id="mod">
+        aguardando modelo
+      </div>
+
+      <div class="analysis-text" id="analysisText">
+        Aguardando nova rodada...
+      </div>
+
+      <div class="progress" id="progress">
+
+        <div
+          class="progress-bar"
+          id="progressBar"
+        ></div>
+
+      </div>
+
+      <div class="orb waiting" id="orb">
+
+        <div class="orb-inner">
+
+          <strong id="conf">—</strong>
+
+          <small id="confLab">
+            aguardando dados
+          </small>
+
+        </div>
+
+      </div>
+
+      <div class="foco" id="foco">
+        ENTRADA: —
+      </div>
+
+      <div class="motivo" id="motivo">
+        Aguardando uma análise.
+      </div>
+
+    </div>
+
+
+    <div class="analytics">
+
+      <div class="metric">
+
+        <label>
+          QUALIDADE
+        </label>
+
+        <strong id="quality">
+          —
+        </strong>
+
+      </div>
+
+      <div class="metric">
+
+        <label>
+          CONSENSO
+        </label>
+
+        <strong id="consensus">
+          —
+        </strong>
+
+      </div>
+
+      <div class="metric">
+
+        <label>
+          REGIME
+        </label>
+
+        <strong id="regimeShort">
+          —
+        </strong>
+
+      </div>
+
+      <div class="metric">
+
+        <label>
+          BACKTEST
+        </label>
+
+        <strong id="backtestRate">
+          —
+        </strong>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="signal" id="signalBox">
+
+    <div class="signal-head">
+
+      <div class="signal-label">
+        DECISÃO DA ANÁLISE
+      </div>
+
+      <div
+        class="status-badge"
+        id="signalStatus"
+      >
+        AGUARDANDO
+      </div>
+
+    </div>
+
+    <h2 id="entrar">
+      ENTRADA: AGUARDANDO
+    </h2>
+
+    <div class="signal-sub" id="sinalSub">
+      O sistema ainda não concluiu a análise.
+    </div>
+
+    <div class="chips" id="chips"></div>
+
+    <div class="padroes" id="pads">
+      Nenhuma análise disponível.
+    </div>
+
+  </div>
+
+
+  <div class="bottom-grid">
+
+    <div class="card">
+
+      <div class="section-title">
+        LEITURA DO REGIME
+      </div>
+
+      <div class="regime">
+
+        <div>
+
+          <div
+            class="regime-name"
+            id="regimeName"
+          >
+            NEUTRO
+          </div>
+
+          <div
+            class="reasons"
+            id="regimeReasons"
+          >
+            Aguardando dados suficientes.
+          </div>
+
+        </div>
+
+        <div
+          class="regime-score"
+          id="regimeScore"
+        >
+          —
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="section-title">
+        CONSENSO DAS ESTRATÉGIAS
+      </div>
+
+      <div
+        class="consensus-list"
+        id="consensusList"
+      >
+        <div class="consensus-empty">
+          Aguardando estratégias...
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="wl">
+
+    <div class="stat">
+
+      <div class="stat-label">
+        ACERTOS
+      </div>
+
+      <b class="ok" id="w">
+        0
+      </b>
+
+    </div>
+
+    <div class="stat">
+
+      <div class="stat-label">
+        ERROS
+      </div>
+
+      <b class="bad" id="l">
+        0
+      </b>
+
+    </div>
+
+    <div class="stat">
+
+      <div class="stat-label">
+        PENDENTES
+      </div>
+
+      <b id="pend">
+        0
+      </b>
+
+    </div>
+
+    <div class="stat">
+
+      <div class="stat-label">
+        ASSERTIVIDADE
+      </div>
+
+      <b id="acc">
+        0%
+      </b>
+
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="card-head">
+
+      <div class="card-title">
+        LIVRO DE RESULTADOS
+      </div>
+
+      <div class="card-meta">
+        últimas análises
+      </div>
+
+    </div>
+
+    <div class="book" id="book">
+      Aguardando primeira entrada...
+    </div>
+
+  </div>
+
+
+  <div class="footer-note">
+
+    RIFT Double Radar utiliza dados históricos
+    e modelos estatísticos/heurísticos.
+
+    Nenhuma análise garante o resultado
+    de uma rodada futura.
+
+  </div>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   ESTADO
+========================================================= */
+
+let live = true;
+
+let lastKey = "";
+
+let timer = null;
+
+let items = [];
+
+let analysisRunning = false;
+
+let animationTimers = [];
+
+let lastAI = null;
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+const $ = id =>
+  document.getElementById(id);
+
+
+function sleep(ms){
+
+  return new Promise(
+    resolve => setTimeout(resolve,ms)
+  );
+
+}
+
+
+function safeText(
+  value,
+  fallback="—"
+){
+
+  if(
+    value === null ||
+    value === undefined ||
+    value === ""
+  ){
+
+    return fallback;
+
+  }
+
+  return String(value);
+
+}
+
+
+function numericValue(value){
+
+  if(
+    value === null ||
+    value === undefined ||
+    value === ""
+  ){
+
+    return null;
+
+  }
+
+  if(
+    typeof value === "object"
+  ){
+
+    return null;
+
+  }
+
+  const n =
+    Number(value);
+
+  return Number.isFinite(n)
+    ? n
+    : null;
+
+}
+
+
+/* =========================================================
+   CORES
+========================================================= */
+
+function colorOf(n){
+
+  n = Number(n);
+
+  if(n === 0){
+
+    return "B";
+
+  }
+
+  return n <= 7
+    ? "V"
+    : "P";
+
+}
+
+
+function nome(c){
+
+  c =
+    String(c || "")
+      .toUpperCase();
+
+  if(c === "V")
+    return "VERMELHO";
+
+  if(c === "P")
+    return "PRETO";
+
+  if(c === "B")
+    return "BRANCO";
+
+  return "—";
+
+}
+
+
+/* =========================================================
+   ESTATÍSTICAS
+========================================================= */
+
+function statsFrom(list){
+
+  const colors =
+    list.map(
+      x => String(x.color || "").toUpperCase()
+    );
+
+  const n =
+    colors.length;
+
+  const count =
+    k =>
+      colors.filter(
+        x => x === k
+      ).length;
+
+  let streak = 0;
+
+  if(n){
+
+    streak = 1;
+
+    for(
+      let i=n-2;
+      i>=0;
+      i--
+    ){
+
+      if(
+        colors[i] ===
+        colors[n-1]
+      ){
+
+        streak++;
+
+      }else{
+
+        break;
+
+      }
+
+    }
+
+  }
+
+  let gap = 0;
+
+  for(
+    let i=n-1;
+    i>=0;
+    i--
+  ){
+
+    if(
+      colors[i] === "B"
+    ){
+
+      break;
+
+    }
+
+    gap++;
+
+  }
+
+  return {
+
+    n,
+
+    v:count("V"),
+
+    p:count("P"),
+
+    b:count("B"),
+
+    last:
+      colors[n-1] ||
+      null,
+
+    streak,
+
+    gap
+
+  };
+
+}
+
+
+/* =========================================================
+   HISTÓRICO
+========================================================= */
+
+function renderHist(list){
+
+  const s =
+    statsFrom(list);
+
+  $("nRod").textContent =
+    s.n;
+
+  $("nV").textContent =
+    s.v +
+    " (" +
+    (
+      s.n
+        ? (s.v/s.n*100).toFixed(1)
+        : "0.0"
+    ) +
+    "%)";
+
+  $("nP").textContent =
+    s.p +
+    " (" +
+    (
+      s.n
+        ? (s.p/s.n*100).toFixed(1)
+        : "0.0"
+    ) +
+    "%)";
+
+  $("nB").textContent =
+    s.b +
+    " (" +
+    (
+      s.n
+        ? (s.b/s.n*100).toFixed(1)
+        : "0.0"
+    ) +
+    "%)";
+
+  $("nSt").textContent =
+    s.last
+      ? nome(s.last) +
+        " x" +
+        s.streak
+      : "—";
+
+  $("nGap").textContent =
+    s.gap;
+
+  const visible =
+    list.slice(-70);
+
+  $("dots").innerHTML =
+    visible
+      .map(x => {
+
+        const c =
+          String(
+            x.color ||
+            colorOf(x.roll)
+          )
+            .toUpperCase();
+
+        return `
+          <div
+            class="dot ${c}"
+            title="${nome(c)} · ${safeText(x.roll)}"
+          >
+            ${
+              c === "B"
+                ? "B"
+                : safeText(x.roll)
+            }
+          </div>
+        `;
+
+      })
+      .join("");
+
+  $("grafOk").textContent =
+    list.length
+      ? list.length +
+        " rodadas"
+      : "sem dados";
+
+}
+
+
+/* =========================================================
+   ORBE
+========================================================= */
+
+function setOrbState(
+  state,
+  confValue
+){
+
+  const orb =
+    $("orb");
+
+  const lab =
+    $("aiLab");
+
+  const conf =
+    $("conf");
+
+  const confLab =
+    $("confLab");
+
+  if(!orb)
+    return;
+
+  orb.classList.remove(
+    "analyzing",
+    "waiting",
+    "done"
+  );
+
+  if(lab){
+
+    lab.classList.remove(
+      "pulse"
+    );
+
+  }
+
+  if(state === "analyzing"){
+
+    orb.classList.add(
+      "analyzing"
+    );
+
+    if(lab){
+
+      lab.textContent =
+        "RIFT ANALYZER · PROCESSANDO";
+
+      lab.classList.add(
+        "pulse"
+      );
+
+    }
+
+    if(conf){
+
+      conf.textContent =
+        "…";
+
+    }
+
+    if(confLab){
+
+      confLab.textContent =
+        "analisando histórico";
+
+    }
+
+    return;
+
+  }
+
+  if(state === "waiting"){
+
+    orb.classList.add(
+      "waiting"
+    );
+
+    if(lab){
+
+      lab.textContent =
+        "AGUARDANDO NOVA RODADA";
+
+    }
+
+    if(conf){
+
+      conf.textContent =
+        "—";
+
+    }
+
+    if(confLab){
+
+      confLab.textContent =
+        "monitorando";
+
+    }
+
+    return;
+
+  }
+
+  orb.classList.add(
+    "done"
+  );
+
+  if(lab){
+
+    lab.textContent =
+      "ANÁLISE CONCLUÍDA";
+
+  }
+
+  if(conf){
+
+    const n =
+      numericValue(confValue);
+
+    conf.textContent =
+      n !== null
+        ? n.toFixed(0) + "%"
+        : "—";
+
+  }
+
+  if(confLab){
+
+    confLab.textContent =
+      "score interno";
+
+  }
+
+}
+
+
+/* =========================================================
+   ANIMAÇÃO
+========================================================= */
+
+function clearAnimation(){
+
+  animationTimers.forEach(
+    clearTimeout
+  );
+
+  animationTimers = [];
+
+}
+
+
+function setAnalysisStatus(
+  text,
+  progress
+){
+
+  const el =
+    $("analysisText");
+
+  const bar =
+    $("progressBar");
+
+  const box =
+    $("progress");
+
+  if(el){
+
+    el.textContent =
+      text;
+
+  }
+
+  if(bar){
+
+    bar.style.width =
+      Math.max(
+        0,
+        Math.min(
+          100,
+          progress
+        )
+      ) +
+      "%";
+
+  }
+
+  if(box){
+
+    box.classList.add(
+      "active"
+    );
+
+  }
+
+}
+
+
+function startAnalysisAnimation(){
+
+  clearAnimation();
+
+  analysisRunning =
+    true;
+
+  setOrbState(
+    "analyzing"
+  );
+
+  setAnalysisStatus(
+    "● Conectando ao histórico...",
+    8
+  );
+
+  const stages = [
+
+    [
+      350,
+      "● Validando dados recebidos...",
+      20
+    ],
+
+    [
+      700,
+      "● Lendo últimas rodadas...",
+      32
+    ],
+
+    [
+      1050,
+      "● Calculando Markov e transições...",
+      46
+    ],
+
+    [
+      1400,
+      "● Medindo densidade e streak...",
+      58
+    ],
+
+    [
+      1750,
+      "● Testando alternância e regime...",
+      70
+    ],
+
+    [
+      2100,
+      "● Comparando estratégias...",
+      82
+    ],
+
+    [
+      2450,
+      "● Calculando consenso...",
+      92
+    ],
+
+    [
+      2800,
+      "● Finalizando análise...",
+      97
+    ]
+
+  ];
+
+  stages.forEach(
+    ([delay,text,pct]) => {
+
+      const t =
+        setTimeout(
+          () => {
+
+            if(
+              analysisRunning
+            ){
+
+              setAnalysisStatus(
+                text,
+                pct
+              );
+
+            }
+
+          },
+          delay
+        );
+
+      animationTimers.push(
+        t
+      );
+
+    }
+  );
+
+}
+
+
+function finishAnalysisAnimation(
+  ai
+){
+
+  clearAnimation();
+
+  analysisRunning =
+    false;
+
+  setAnalysisStatus(
+    "✓ Análise concluída · resultado atualizado",
+    100
+  );
+
+  setTimeout(
+    () => {
+
+      if(ai){
+
+        setOrbState(
+          "done",
+          ai.conf
+        );
+
+      }
+
+    },
+    100
+  );
+
+  setTimeout(
+    () => {
+
+      if($("progress")){
+
+        $("progress")
+          .classList
+          .remove("active");
+
+      }
+
+    },
+    1000
+  );
+
+}
+
+
+/* =========================================================
+   MÉTRICAS
+========================================================= */
+
+function renderMetrics(ai){
+
+  const qualityRaw =
+    ai.quality ??
+    ai.qualidade ??
+    ai.qualityScore ??
+    null;
+
+  const quality =
+    numericValue(qualityRaw);
+
+
+  let consensusRaw =
+    ai.consensusPct ??
+    ai.consensusPercent ??
+    ai.consensoPct ??
+    null;
+
+
+  if(
+    consensusRaw === null &&
+    typeof ai.consensus === "number"
+  ){
+
+    consensusRaw =
+      ai.consensus;
+
+  }
+
+
+  const consensus =
+    numericValue(consensusRaw);
+
+
+  const regime =
+    ai.regime ??
+    ai.regimeName ??
+    ai.regime_label ??
+    null;
+
+
+  const btRaw =
+    ai.backtest?.taxa ??
+    ai.backtest?.rate ??
+    ai.backtest?.accuracy ??
+    ai.backtestRate ??
+    ai.backtest?.assertividade ??
+    null;
+
+
+  const bt =
+    numericValue(btRaw);
+
+
+  $("quality").textContent =
+    quality !== null
+      ? quality.toFixed(0) + "/100"
+      : "—";
+
+
+  $("consensus").textContent =
+    consensus !== null
+      ? consensus.toFixed(0) + "%"
+      : "—";
+
+
+  $("regimeShort").textContent =
+    regime
+      ? String(
+          typeof regime === "object"
+            ? regime.name ||
+              regime.regime ||
+              "NEUTRO"
+            : regime
+        ).slice(0,18)
+      : "—";
+
+
+  $("backtestRate").textContent =
+    bt !== null
+      ? bt.toFixed(1) + "%"
+      : "—";
+
+
+  $("quality").className =
+    quality !== null
+      ? (
+          quality >= 70
+            ? "green"
+            : quality >= 50
+              ? "yellow"
+              : "red"
+        )
+      : "";
+
+
+  $("consensus").className =
+    consensus !== null
+      ? (
+          consensus >= 70
+            ? "green"
+            : consensus >= 50
+              ? "yellow"
+              : "red"
+        )
+      : "";
+
+}
+
+
+/* =========================================================
+   REGIME
+========================================================= */
+
+function renderRegime(ai){
+
+  const regime =
+    ai.regime ??
+    ai.regimeName ??
+    ai.regime_label ??
+    "NEUTRO";
+
+
+  const scoreRaw =
+    ai.regimeScore ??
+    (
+      typeof ai.regime === "object"
+        ? ai.regime.score
+        : null
+    );
+
+
+  const score =
+    numericValue(scoreRaw);
+
+
+  let reasons =
+    ai.regimeReasons ??
+    (
+      typeof ai.regime === "object"
+        ? ai.regime.reasons
+        : null
+    ) ??
+    ai.regimeMotivos ??
+    [];
+
+
+  if(!Array.isArray(reasons)){
+
+    reasons =
+      reasons
+        ? [reasons]
+        : [];
+
+  }
+
+
+  $("regimeName").textContent =
+    typeof regime === "object"
+      ? safeText(
+          regime.name ||
+          regime.regime,
+          "NEUTRO"
+        )
+      : safeText(
+          regime,
+          "NEUTRO"
+        );
+
+
+  $("regimeScore").textContent =
+    score !== null
+      ? score.toFixed(0) + "/100"
+      : "—";
+
+
+  $("regimeReasons").textContent =
+    reasons.length
+      ? reasons
+          .filter(Boolean)
+          .slice(0,3)
+          .join(" · ")
+      : (
+          ai.regimeInfo?.reason ||
+          "Sem justificativas adicionais."
+        );
+
+}
+
+
+/* =========================================================
+   CONSENSO DAS ESTRATÉGIAS
+========================================================= */
+
+function normalizeStrategyList(ai){
+
+  let source =
+    ai.strategies ??
+    ai.estrategias ??
+    ai.consensusStrategies ??
+    null;
+
+
+  /*
+   * O SERVER ATUAL MANDA:
+   *
+   * strategies: {
+   *   markov: {...},
+   *   density: {...},
+   *   streak: {...},
+   *   ...
+   * }
+   *
+   * Portanto transformamos OBJETO -> ARRAY.
+   */
+
+  if(
+    source &&
+    !Array.isArray(source) &&
+    typeof source === "object"
+  ){
+
+    source =
+      Object.entries(source)
+        .map(
+          ([key,value]) => {
+
+            const item =
+              value &&
+              typeof value === "object"
+                ? value
+                : {};
+
+            return {
+
+              ...item,
+
+              id:
+                item.id ||
+                key,
+
+              nome:
+                item.nome ||
+                item.name ||
+                key
+
+            };
+
+          }
+        );
+
+  }
+
+
+  if(
+    Array.isArray(source) &&
+    source.length
+  ){
+
+    return source;
+
+  }
+
+
+  /*
+   * Compatibilidade com versões antigas.
+   */
+
+  const legacy = [
+
+    {
+      id:"markov",
+      nome:"Markov",
+      entrada:
+        ai.markovPick ??
+        ai.markov?.entrada,
+      score:
+        ai.markovScore ??
+        ai.markov?.score
+    },
+
+    {
+      id:"density",
+      nome:"Densidade",
+      entrada:
+        ai.densityPick ??
+        ai.densidade?.entrada,
+      score:
+        ai.densityScore ??
+        ai.densidade?.score
+    },
+
+    {
+      id:"streak",
+      nome:"Streak",
+      entrada:
+        ai.streakPick ??
+        ai.streak?.entrada,
+      score:
+        ai.streakScore ??
+        ai.streak?.score
+    },
+
+    {
+      id:"alternation",
+      nome:"Alternância",
+      entrada:
+        ai.alternationPick ??
+        ai.alternancia?.entrada,
+      score:
+        ai.alternationScore ??
+        ai.alternancia?.score
+    }
+
+  ];
+
+
+  return legacy;
+
+}
+
+
+function renderConsensus(ai){
+
+  const list =
+    normalizeStrategyList(ai);
+
+
+  const container =
+    $("consensusList");
+
+
+  if(
+    !container
+  ){
+
+    return;
+
+  }
+
+
+  if(
+    !list.length
+  ){
+
+    container.innerHTML = `
+      <div class="consensus-empty">
+        Nenhuma estratégia retornada.
+      </div>
+    `;
+
+    return;
+
+  }
+
+
+  container.innerHTML =
+    list
+      .map(
+        (item,index) => {
+
+          const nomeEstr =
+            safeText(
+              item.nome ||
+              item.name ||
+              item.id ||
+              ("Estratégia " + (index+1)),
+              "Estratégia"
+            );
+
+
+          const pick =
+            String(
+              item.entrada ??
+              item.pick ??
+              item.color ??
+              "—"
+            ).toUpperCase();
+
+
+          let score =
+            numericValue(
+              item.score ??
+              item.conf ??
+              item.confidence ??
+              item.percent ??
+              item.taxa
+            );
+
+
+          /*
+           * Se a estratégia não tiver score,
+           * tentamos usar voto/peso.
+           */
+
+          if(
+            score === null
+          ){
+
+            const peso =
+              numericValue(
+                item.peso ??
+                item.weight
+              );
+
+            score =
+              peso !== null
+                ? Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      peso
+                    )
+                  )
+                : 0;
+
+          }
+
+
+          score =
+            Math.max(
+              0,
+              Math.min(
+                100,
+                score || 0
+              )
+            );
+
+
+          const cor =
+            pick === "V"
+              ? "VERMELHO"
+              : pick === "P"
+                ? "PRETO"
+                : pick === "B"
+                  ? "BRANCO"
+                  : "—";
+
+
+          return `
+
+            <div
+              class="consensus-row"
+              title="${safeText(nomeEstr)} · ${cor} · ${score.toFixed(0)}%"
+            >
+
+              <span>
+                ${safeText(nomeEstr)}
+                ·
+                ${pick}
+              </span>
+
+              <div class="consensus-bar">
+
+                <div
+                  class="consensus-fill"
+                  style="width:${score.toFixed(0)}%"
+                ></div>
+
+              </div>
+
+              <span>
+                ${
+                  score > 0
+                    ? score.toFixed(0) + "%"
+                    : "—"
+                }
+              </span>
+
+            </div>
+
+          `;
+
+        }
+      )
+      .join("");
+
+
+}
+
+
+/* =========================================================
+   SIGNAL / ENTRADA
+========================================================= */
+
+function renderSignal(ai){
+
+  const signalBox =
+    $("signalBox");
+
+  const status =
+    $("signalStatus");
+
+
+  let entrada =
+    ai.entrada ??
+    ai.pick ??
+    ai.suggestedEntry ??
+    ai.nextEntry ??
+    null;
+
+
+  const noSignal =
+    ai.sinal === false ||
+    ai.signal === false ||
+    ai.status === "SEM_SINAL" ||
+    ai.status === "NO_SIGNAL" ||
+    ai.noSignal === true;
+
+
+  if(noSignal){
+
+    signalBox.classList.remove(
+      "ready"
+    );
+
+    signalBox.classList.add(
+      "no-signal"
+    );
+
+
+    status.textContent =
+      "SEM SINAL";
+
+    status.className =
+      "status-badge warn";
+
+
+    $("entrar").textContent =
+      "ENTRADA: SEM SINAL";
+
+    $("entrar").className =
+      "";
+
+
+    $("sinalSub").textContent =
+      ai.warning ||
+      ai.motivo ||
+      "As estratégias não atingiram o nível mínimo de concordância.";
+
+
+    $("chips").innerHTML = `
+
+      <span class="chip yellow">
+        AGUARDAR
+      </span>
+
+      <span class="chip">
+        SEM ENTRADA
+      </span>
+
+    `;
+
+
+    $("pads").innerHTML =
+      Array.isArray(ai.padroes) &&
+      ai.padroes.length
+
+        ? ai.padroes
+            .slice(0,8)
+            .map(
+              p =>
+                `• ${
+                  safeText(
+                    p.nome ||
+                    p.id
+                  )
+                }
+                →
+                ${
+                  safeText(
+                    p.entrada
+                  )
+                }`
+            )
+            .join("<br>")
+
+        : "O sistema não encontrou consenso suficiente.";
+
+
+    return;
+
+  }
+
+
+  signalBox.classList.remove(
+    "no-signal"
+  );
+
+  signalBox.classList.add(
+    "ready"
+  );
+
+
+  if(!entrada){
+
+    status.textContent =
+      "AGUARDANDO";
+
+    status.className =
+      "status-badge";
+
+
+    $("entrar").textContent =
+      "ENTRADA: AGUARDANDO";
+
+    $("entrar").className =
+      "";
+
+
+    $("sinalSub").textContent =
+      "A análise ainda não definiu uma direção.";
+
+    $("chips").innerHTML =
+      "";
+
+    $("pads").innerHTML =
+      "Nenhum sinal disponível.";
+
+    return;
+
+  }
+
+
+  entrada =
+    String(
+      entrada
+    ).toUpperCase();
+
+
+  status.textContent =
+    "ANÁLISE PRONTA";
+
+  status.className =
+    "status-badge good";
+
+
+  $("entrar").textContent =
+    "ENTRADA: " +
+    nome(entrada);
+
+  $("entrar").className =
+    entrada;
+
+
+  $("sinalSub").textContent =
+    ai.cached
+      ? "Resultado mantido até a próxima rodada."
+      : "Resultado calculado a partir do histórico disponível.";
+
+
+  const conf =
+    numericValue(
+      ai.conf ??
+      ai.confidence
+    );
+
+
+  const risco =
+    ai.risco ??
+    ai.risk ??
+    "RISCO";
+
+
+  const consenso =
+    numericValue(
+      ai.consensusPct ??
+      ai.consensusPercent ??
+      ai.consensoPct ??
+      (
+        typeof ai.consensus === "number"
+          ? ai.consensus
+          : null
+      )
+    );
+
+
+  $("chips").innerHTML =
+
+    `<span class="chip green">
+      ${nome(entrada)}
+    </span>` +
+
+    (
+      conf !== null
+        ? `<span class="chip">
+            ${conf.toFixed(0)}% score
+          </span>`
+        : ""
+    ) +
+
+    (
+      consenso !== null
+        ? `<span class="chip">
+            ${consenso.toFixed(0)}% consenso
+          </span>`
+        : ""
+    ) +
+
+    `<span class="chip">
+      ${safeText(risco)}
+    </span>` +
+
+    (
+      ai.cached
+        ? `<span class="chip">
+            LOCK
+          </span>`
+        : `<span class="chip">
+            NOVA
+          </span>`
+    );
+
+
+  const pads =
+    Array.isArray(ai.padroes)
+      ? ai.padroes
+      : normalizeStrategyList(ai);
+
+
+  $("pads").innerHTML =
+    pads.length
+
+      ? pads
+          .slice(0,8)
+          .map(
+            p =>
+              `✔ ${
+                safeText(
+                  p.nome ||
+                  p.name ||
+                  p.id
+                )
+              }
+              →
+              ${
+                safeText(
+                  p.entrada ||
+                  p.pick
+                )
+              }`
+          )
+          .join("<br>")
+
+      : "Nenhuma estratégia adicional retornada.";
+
+}
+
+
+/* =========================================================
+   RENDER IA
+========================================================= */
+
+function renderAI(ai){
+
+  if(!ai){
+    return;
+  }
+
+
+  lastAI =
+    ai;
+
+
+  $("mod").textContent =
+    [
+      ai.source,
+      ai.model
+    ]
+      .filter(Boolean)
+      .join(" · ") ||
+    "motor local";
+
+
+  $("foco").textContent =
+    ai.entrada
+      ? "ENTRADA: " +
+        nome(ai.entrada)
+      : "ENTRADA: SEM SINAL";
+
+
+  $("foco").className =
+    ai.entrada
+      ? "foco " +
+        String(
+          ai.entrada
+        ).toUpperCase()
+      : "foco";
+
+
+  $("motivo").textContent =
+    ai.motivo ||
+    ai.warning ||
+    "Análise concluída.";
+
+
+  renderSignal(ai);
+
+  renderMetrics(ai);
+
+  renderRegime(ai);
+
+  renderConsensus(ai);
+
+  renderBook(ai);
+
+
+  const conf =
+    ai.conf ??
+    ai.confidence ??
+    null;
+
+
+  finishAnalysisAnimation({
+
+    ...ai,
+
+    conf
+
+  });
+
+}
+
+
+/* =========================================================
+   BOOK
+========================================================= */
+
+function renderBook(ai){
+
+  const wins =
+    numericValue(
+      ai.acertos ??
+      ai.wins ??
+      ai.performance?.acertos ??
+      ai.performance?.wins
+    ) ?? 0;
+
+
+  const losses =
+    numericValue(
+      ai.erros ??
+      ai.losses ??
+      ai.performance?.erros ??
+      ai.performance?.losses
+    ) ?? 0;
+
+
+  /*
+   * Corrige o problema:
+   *
+   * pending: {entrada,conf,status}
+   *
+   * Agora nunca mais mostra [object Object].
+   */
+
+  let pending =
+    ai.pendentes ??
+    ai.pendingCount ??
+    ai.performance?.pending ??
+    null;
+
+
+  if(
+    typeof pending === "object" &&
+    pending !== null
+  ){
+
+    pending =
+      1;
+
+  }
+
+
+  pending =
+    numericValue(pending) ?? 0;
+
+
+  const accuracy =
+    numericValue(
+      ai.assertividade ??
+      ai.accuracy ??
+      ai.winRate ??
+      ai.performance?.assertividade ??
+      ai.performance?.winRate
+    ) ?? 0;
+
+
+  $("w").textContent =
+    wins;
+
+
+  $("l").textContent =
+    losses;
+
+
+  $("pend").textContent =
+    pending;
+
+
+  $("acc").textContent =
+    accuracy.toFixed(1) +
+    "%";
+
+
+  const book =
+    Array.isArray(ai.book)
+      ? ai.book
+      : [];
+
+
+  if(
+    !book.length
+  ){
+
+    $("book").innerHTML =
+      "Livro vazio — aguardando uma rodada fechar o resultado.";
+
+    return;
+
+  }
+
+
+  $("book").innerHTML =
+    book
+      .slice(0,30)
+      .map(
+        r => {
+
+          const status =
+            String(
+              r.status ||
+              ""
+            ).toUpperCase();
+
+
+          let cls =
+            "pending";
+
+
+          let statusLabel =
+            status ||
+            "PENDENTE";
+
+
+          /*
+           * WIN = verde
+           * LOSS = vermelho
+           */
+
+          if(
+            status === "WIN" ||
+            status === "ACERTO"
+          ){
+
+            cls =
+              "win";
+
+            statusLabel =
+              "WIN";
+
+          }else if(
+            status === "LOSS" ||
+            status === "ERRO"
+          ){
+
+            cls =
+              "loss";
+
+            statusLabel =
+              "LOSS";
+
+          }
+
+
+          const timestamp =
+            r.timestamp ||
+            r.ts ||
+            r.createdAt ||
+            null;
+
+
+          let time =
+            "--:--:--";
+
+
+          if(timestamp){
+
+            const d =
+              new Date(timestamp);
+
+            if(
+              !Number.isNaN(
+                d.getTime()
+              )
+            ){
+
+              time =
+                d.toLocaleTimeString(
+                  "pt-BR",
+                  {
+                    hour:"2-digit",
+                    minute:"2-digit",
+                    second:"2-digit"
+                  }
+                );
+
+            }else if(
+              String(timestamp).length >= 19
+            ){
+
+              time =
+                String(timestamp)
+                  .slice(11,19);
+
+            }
+
+          }
+
+
+          const entry =
+            String(
+              r.entrada ??
+              r.entry ??
+              "—"
+            ).toUpperCase();
+
+
+          const result =
+            String(
+              r.resultado ??
+              r.actual ??
+              "—"
+            ).toUpperCase();
+
+
+          const roll =
+            r.roll !== null &&
+            r.roll !== undefined &&
+            r.roll !== ""
+              ? ` ${r.roll}`
+              : "";
+
+
+          return `
+
+            <div class="book-row ${cls}">
+
+              <span class="book-time">
+                ${safeText(time,"--:--:--")}
+              </span>
+
+              · entrada
+
+              <span class="book-entry">
+                ${safeText(entry)}
+              </span>
+
+              · saiu
+
+              <span class="book-result">
+                ${safeText(result)}${roll}
+              </span>
+
+              ·
+
+              <span class="book-status ${cls}">
+                ${statusLabel}
+              </span>
+
+            </div>
+
+          `;
+
+        }
+      )
+      .join("");
+
+}
+
+
+/* =========================================================
+   HISTÓRICO API
+========================================================= */
+
+async function pullHistory(){
+
+  const response =
+    await fetch(
+      "/api/history?_=" +
+      Date.now(),
+      {
+        cache:"no-store"
+      }
+    );
+
+
+  const r =
+    await response.json();
+
+
+  if(!r.ok){
+
+    throw new Error(
+      r.error ||
+      "Erro no histórico"
+    );
+
+  }
+
+
+  items =
+    (r.items || [])
+      .map(
+        x => {
+
+          const roll =
+            Number(x.roll);
+
+
+          return {
+
+            id:
+              x.id ??
+              null,
+
+            roll,
+
+            color:
+              String(
+                x.color ||
+                colorOf(roll)
+              ).toUpperCase(),
+
+            instant:
+              x.instant ||
+              x.timestamp ||
+              x.createdAt ||
+              null
+
+          };
+
+        }
+      );
+
+
+  /*
+   * O servidor deve entregar cronologicamente.
+   * Aqui reforçamos a ordenação para garantir
+   * que a última pedra seja realmente a última.
+   */
+
+  const validTimes =
+    items
+      .map(
+        x =>
+          x.instant
+            ? new Date(
+                x.instant
+              ).getTime()
+            : NaN
+      )
+      .filter(
+        Number.isFinite
+      );
+
+
+  if(
+    validTimes.length >= 2
+  ){
+
+    items.sort(
+      (a,b) => {
+
+        const ta =
+          a.instant
+            ? new Date(
+                a.instant
+              ).getTime()
+            : 0;
+
+        const tb =
+          b.instant
+            ? new Date(
+                b.instant
+              ).getTime()
+            : 0;
+
+        return ta - tb;
+
+      }
+    );
+
+  }
+
+
+  $("livePillText").textContent =
+    "AO VIVO · " +
+    (
+      r.source ||
+      "HISTÓRICO"
+    );
+
+
+  $("livePill")
+    .classList
+    .remove(
+      "off"
+    );
+
+
+  $("grafOk").textContent =
+    (
+      r.source ||
+      "fonte"
+    ) +
+    " · " +
+    items.length +
+    " rodadas";
+
+
+  renderHist(items);
+
+  return items;
+
+}
+
+
+/* =========================================================
+   BOOK API
+========================================================= */
+
+async function refreshBook(){
+
+  try{
+
+    const response =
+      await fetch(
+        "/api/book?_=" +
+        Date.now(),
+        {
+          cache:"no-store"
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if(data){
+
+      renderBook(data);
+
+    }
+
+  }catch(e){
+
+    console.warn(
+      "[book]",
+      e
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   CHAVE DA RODADA
+========================================================= */
+
+function keyOf(list){
+
+  if(!list.length){
+
+    return "";
+
+  }
+
+
+  const last =
+    list[
+      list.length - 1
+    ];
+
+
+  /*
+   * A chave principal agora é a ÚLTIMA PEDRA.
+   * Isso evita problemas quando a API muda
+   * a ordem do histórico.
+   */
+
+  return [
+
+    last.id || "",
+
+    last.color || "",
+
+    last.roll ?? "",
+
+    last.instant || "",
+
+    list.length
+
+  ].join("|");
+
+}
+
+
+/* =========================================================
+   PEDIR IA
+========================================================= */
+
+async function askAI(
+  force=false
+){
+
+  if(
+    analysisRunning &&
+    !force
+  ){
+
+    return;
+
+  }
+
+
+  startAnalysisAnimation();
+
+
+  $("btnAI").disabled =
+    true;
+
+
+  await sleep(450);
+
+
+  const colors =
+    items.map(
+      x => x.color
+    );
+
+
+  const rolls =
+    items.map(
+      x => x.roll
+    );
+
+
+  try{
+
+    const response =
+      await fetch(
+        "/api/ai",
+        {
+
+          method:"POST",
+
+          headers:{
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+
+              colors,
+
+              rolls,
+
+              items,
+
+              force:
+                !!force
+
+            })
+
+        }
+      );
+
+
+    let r;
+
+
+    try{
+
+      r =
+        await response.json();
+
+    }catch{
+
+      throw new Error(
+        "Servidor retornou uma resposta inválida."
+      );
+
+    }
+
+
+    if(!response.ok){
+
+      const message =
+        r?.error ||
+        (
+          response.status === 429
+            ? "IA temporariamente limitada. O motor local continua disponível."
+            : "Erro HTTP " +
+              response.status
+        );
+
+
+      throw new Error(
+        message
+      );
+
+    }
+
+
+    if(
+      !r.ok &&
+      r.error
+    ){
+
+      throw new Error(
+        r.error
+      );
+
+    }
+
+
+    renderAI(r);
+
+
+  }catch(e){
+
+    analysisRunning =
+      false;
+
+
+    clearAnimation();
+
+
+    setOrbState(
+      "waiting"
+    );
+
+
+    setAnalysisStatus(
+      "⚠ " +
+      (
+        e.message ||
+        "Falha na análise"
+      ),
+      0
+    );
+
+
+    $("motivo").textContent =
+      e.message ||
+      "Não foi possível concluir a análise.";
+
+
+    $("signalStatus").textContent =
+      "ERRO / AGUARDANDO";
+
+
+    $("signalStatus").className =
+      "status-badge warn";
+
+  }finally{
+
+    $("btnAI").disabled =
+      false;
+
+  }
+
+}
+
+
+/* =========================================================
+   TICK
+========================================================= */
+
+async function tick(){
+
+  if(!live){
+
+    return;
+
+  }
+
+
+  try{
+
+    await pullHistory();
+
+
+    const currentKey =
+      keyOf(items);
+
+
+    if(
+      currentKey &&
+      currentKey !== lastKey
+    ){
+
+      console.log(
+        "[RIFT] nova rodada",
+        currentKey
+      );
+
+
+      lastKey =
+        currentKey;
+
+
+      await askAI(false);
+
+    }else{
+
+      await refreshBook();
+
+
+      if(
+        !analysisRunning &&
+        $("orb")
+      ){
+
+        setOrbState(
+          "waiting"
+        );
+
+      }
+
+    }
+
+
+  }catch(e){
+
+    console.error(e);
+
+
+    $("livePillText").textContent =
+      "ERRO DE CONEXÃO";
+
+
+    $("livePill")
+      .classList
+      .add(
+        "off"
+      );
+
+
+    $("grafOk").textContent =
+      "falha: " +
+      e.message;
+
+  }
+
+}
+
+
+/* =========================================================
+   LIVE
+========================================================= */
+
+function toggleLive(){
+
+  live =
+    !live;
+
+
+  $("btnLive").textContent =
+    live
+      ? "⏸ Parar ao vivo"
+      : "▶ Iniciar ao vivo";
+
+
+  if(live){
+
+    $("livePill")
+      .classList
+      .remove(
+        "off"
+      );
+
+
+    $("livePillText").textContent =
+      "RECONEXÃO";
+
+
+    tick();
+
+  }else{
+
+    $("livePill")
+      .classList
+      .add(
+        "off"
+      );
+
+
+    $("livePillText").textContent =
+      "PAUSADO";
+
+  }
+
+}
+
+
+/* =========================================================
+   ATUALIZAÇÃO MANUAL
+========================================================= */
+
+async function manualRefresh(){
+
+  const button =
+    document.querySelector(
+      ".btn[onclick='manualRefresh()']"
+    );
+
+
+  if(button){
+
+    button.disabled =
+      true;
+
+  }
+
+
+  try{
+
+    await pullHistory();
+
+    await refreshBook();
+
+  }catch(e){
+
+    console.error(e);
+
+  }finally{
+
+    if(button){
+
+      button.disabled =
+        false;
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   FORÇAR IA
+========================================================= */
+
+async function forceAI(){
+
+  try{
+
+    await pullHistory();
+
+
+    lastKey =
+      keyOf(items);
+
+
+    await askAI(true);
+
+  }catch(e){
+
+    console.error(e);
+
+  }
+
+}
+
+
+/* =========================================================
+   DEMO RNG
+========================================================= */
+
+async function forceDemo(){
+
+  const roll =
+    Math.floor(
+      Math.random() *
+      15
+    );
+
+
+  const demo = {
+
+    id:
+      "demo-" +
+      Date.now(),
+
+    roll,
+
+    color:
+      colorOf(roll),
+
+    instant:
+      new Date()
+        .toISOString()
+
+  };
+
+
+  items.push(
+    demo
+  );
+
+
+  renderHist(
+    items
+  );
+
+
+  lastKey =
+    keyOf(items);
+
+
+  await askAI(true);
+
+}
+
+
+/* =========================================================
+   TECLADO
+========================================================= */
+
+document.addEventListener(
+  "keydown",
+  event => {
+
+    if(
+      event.key === "Enter" &&
+      event.ctrlKey
+    ){
+
+      forceAI();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   INICIALIZAÇÃO
+========================================================= */
+
+setOrbState(
+  "waiting"
+);
+
+
+setAnalysisStatus(
+  "Aguardando nova rodada...",
+  0
+);
+
+
+renderHist(
+  []
+);
+
+
+if(timer){
+
+  clearInterval(
+    timer
+  );
+
+}
+
+
+timer =
+  setInterval(
+    tick,
+    1500
+  );
+
+
+tick();
+
+</script>
+
+</body>
+
+</html>
