@@ -26,10 +26,23 @@ const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
 
+/*
+============================================================
+ CONFIGURAÇÃO DO SERVIDOR
+============================================================
+*/
+
 const PORT = Number(process.env.PORT || 3000);
 const HOST = "0.0.0.0";
 
-const VERSION = "RIFT Double Radar ONLINE 5.0";
+/*
+ IMPORTANTE:
+ ROOT precisa existir antes de qualquer função
+ que utilize os arquivos do projeto.
+*/
+const ROOT = __dirname;
+
+const VERSION = "RIFT Double Radar ONLINE 5.0.1";
 
 /*
 ============================================================
@@ -47,7 +60,7 @@ const BLAZE_URLS = [
 
 /*
 ============================================================
- CONFIGURAÇÃO
+ CONFIGURAÇÃO DO RADAR
 ============================================================
 */
 
@@ -475,6 +488,7 @@ function extractArray(
     json?.results,
     json?.items,
     json?.history,
+
     json?.data?.rounds,
     json?.data?.results,
     json?.data?.items,
@@ -631,14 +645,11 @@ let historyCache = {
 };
 
 let sourceStatus = {
-  source:
-    null,
+  source: null,
 
-  lastSuccess:
-    null,
+  lastSuccess: null,
 
-  lastError:
-    null,
+  lastError: null,
 
   tipminer:
     "unknown",
@@ -896,15 +907,6 @@ function sortRoundsAscending(
     );
   }
 
-  /*
-  Muitas APIs já entregam
-  do mais antigo para o mais novo
-  ou vice-versa.
-
-  Quando não existe timestamp,
-  mantemos a ordem recebida.
-  */
-
   return [
     ...items
   ];
@@ -938,6 +940,22 @@ function round1(
       Number(value || 0) *
         10
     ) / 10
+  );
+}
+
+/*
+ IMPORTANTE:
+ round3 estava sendo utilizada
+ no backtest, mas não existia.
+*/
+function round3(
+  value
+) {
+  return (
+    Math.round(
+      Number(value || 0) *
+        1000
+    ) / 1000
   );
 }
 
@@ -2296,8 +2314,10 @@ function backtest(
         stat.taxaAjustada *
           confidenceSample +
           50 *
-            (1 -
-              confidenceSample)
+            (
+              1 -
+              confidenceSample
+            )
       );
 
     const base =
@@ -2895,17 +2915,22 @@ function analyzeColors(
   colors
 ) {
   const clean =
-    colors.filter(
-      x =>
-        x === "V" ||
-        x === "P" ||
-        x === "B"
-    );
+    Array.isArray(colors)
+      ? colors.filter(
+          x =>
+            x === "V" ||
+            x === "P" ||
+            x === "B"
+        )
+      : [];
 
   if (
     clean.length === 0
   ) {
     return {
+      version:
+        VERSION,
+
       signal:
         "NO_SIGNAL",
 
@@ -2915,8 +2940,17 @@ function analyzeColors(
       canEnter:
         false,
 
+      history:
+        0,
+
       message:
-        "Sem histórico."
+        "Sem histórico.",
+
+      disclaimer:
+        "Radar estatístico baseado em histórico e heurísticas. Não garante o próximo resultado.",
+
+      generatedAt:
+        new Date().toISOString()
     };
   }
 
@@ -3030,10 +3064,33 @@ function analyzeColors(
   }
 
   /*
-  Importante:
-  o sistema continua sendo um radar
-  estatístico, não uma garantia de resultado.
+  ----------------------------------------------------------
+  BACKTEST MÍNIMO
+  ----------------------------------------------------------
   */
+
+  const eligibleStrategies =
+    Object.values(
+      back.stats
+    ).filter(
+      stat =>
+        stat.testes > 0 &&
+        stat.taxa >=
+          CONFIG.MIN_BACKTEST_RATE &&
+        stat.recenteTaxa >=
+          CONFIG.MIN_RECENT_RATE
+    );
+
+  if (
+    clean.length >=
+      CONFIG.MIN_HISTORY_SIGNAL &&
+    eligibleStrategies.length ===
+      0
+  ) {
+    blockers.push(
+      "Nenhuma estratégia atingiu o backtest mínimo"
+    );
+  }
 
   const signal =
     blockers.length === 0
@@ -3177,6 +3234,20 @@ function analyzeColors(
 
     blockers,
 
+    strongSignal:
+      consensus.consenso >=
+        CONFIG.STRONG_SIGNAL_CONSENSUS &&
+      consensus.votePct >=
+        CONFIG.STRONG_SIGNAL_VOTE_PCT &&
+      consensus.margin >=
+        CONFIG.STRONG_SIGNAL_MARGIN &&
+      stability >=
+        CONFIG.STRONG_SIGNAL_STABILITY &&
+      quality.quality >=
+        CONFIG.STRONG_SIGNAL_QUALITY &&
+      consensus.votesWinner >=
+        CONFIG.STRONG_SIGNAL_MIN_VOTES,
+
     strategies:
       strategyRows,
 
@@ -3299,7 +3370,35 @@ function performanceData() {
 
 /*
 ============================================================
- AI
+ BOOK / ESTADO DA RODADA
+============================================================
+*/
+
+const BOOK = {
+  pending: null,
+
+  last: null,
+
+  updatedAt:
+    null
+};
+
+function bookData() {
+  return {
+    pending:
+      BOOK.pending,
+
+    last:
+      BOOK.last,
+
+    updatedAt:
+      BOOK.updatedAt
+  };
+}
+
+/*
+============================================================
+ IA
 ============================================================
 */
 
@@ -3814,16 +3913,22 @@ function safeFilePath(
   }
 
   const file =
-    path.normalize(
-      path.join(
-        ROOT,
+    path.resolve(
+      ROOT,
+      "." +
         relative
-      )
+    );
+
+  const rootResolved =
+    path.resolve(
+      ROOT
     );
 
   if (
+    file !== rootResolved &&
     !file.startsWith(
-      ROOT
+      rootResolved +
+        path.sep
     )
   ) {
     return null;
@@ -3981,6 +4086,17 @@ const server =
               version:
                 VERSION,
 
+              root:
+                path.basename(
+                  ROOT
+                ),
+
+              port:
+                PORT,
+
+              node:
+                process.version,
+
               time:
                 new Date().toISOString()
             }
@@ -4044,6 +4160,11 @@ const server =
               port:
                 PORT,
 
+              root:
+                path.basename(
+                  ROOT
+                ),
+
               ai:
                 aiAvailable(),
 
@@ -4055,6 +4176,9 @@ const server =
 
               performance:
                 performanceData(),
+
+              book:
+                bookData(),
 
               time:
                 new Date().toISOString()
@@ -4173,6 +4297,9 @@ const server =
               {
                 ok:
                   true,
+
+                version:
+                  VERSION,
 
                 source:
                   history.source,
@@ -4331,11 +4458,6 @@ const server =
               }
             );
 
-          /*
-          A IA nunca transforma
-          NO_SIGNAL em SIGNAL.
-          */
-
           let finalAnalysis =
             analysis;
 
@@ -4412,6 +4534,80 @@ const server =
 
         /*
         ------------------------------------------------------
+        BOOK
+        ------------------------------------------------------
+        */
+
+        if (
+          pathname ===
+            "/api/book" &&
+          req.method ===
+            "GET"
+        ) {
+          sendJson(
+            res,
+            200,
+            {
+              ok:
+                true,
+
+              book:
+                bookData(),
+
+              performance:
+                performanceData()
+            }
+          );
+
+          return;
+        }
+
+        /*
+        ------------------------------------------------------
+        BOOK UPDATE
+        ------------------------------------------------------
+        */
+
+        if (
+          pathname ===
+            "/api/book" &&
+          req.method ===
+            "POST"
+        ) {
+          const body =
+            await readBody(
+              req
+            );
+
+          BOOK.pending =
+            body.pending ??
+            body.entry ??
+            null;
+
+          BOOK.last =
+            body.last ??
+            null;
+
+          BOOK.updatedAt =
+            new Date().toISOString();
+
+          sendJson(
+            res,
+            200,
+            {
+              ok:
+                true,
+
+              book:
+                bookData()
+            }
+          );
+
+          return;
+        }
+
+        /*
+        ------------------------------------------------------
         RESET
         ------------------------------------------------------
         */
@@ -4436,6 +4632,15 @@ const server =
 
           PERFORMANCE.history =
             [];
+
+          BOOK.pending =
+            null;
+
+          BOOK.last =
+            null;
+
+          BOOK.updatedAt =
+            new Date().toISOString();
 
           sendJson(
             res,
@@ -4591,6 +4796,10 @@ server.listen(
     );
 
     console.log(
+      ` ROOT: ${ROOT}`
+    );
+
+    console.log(
       ` Node: ${process.version}`
     );
 
@@ -4628,6 +4837,10 @@ server.listen(
 
     console.log(
       "  /api/performance"
+    );
+
+    console.log(
+      "  /api/book"
     );
 
     console.log(
