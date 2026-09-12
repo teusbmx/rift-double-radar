@@ -1,20 +1,16 @@
 <!DOCTYPE html>
-
 <html lang="pt-BR">
-
 <head>
-
 <meta charset="UTF-8">
 
 <meta
-name="viewport"
-content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
-
+  name="viewport"
+  content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
 >
 
 <meta name="theme-color" content="#070b14">
 
-<title>RIFT Double Radar V3</title>
+<title>RIFT Double Radar V4.1.3</title>
 
 <style>
 
@@ -26,11 +22,9 @@ content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
   --line:#1c2c40;
   --txt:#edf4ff;
   --mut:#8296ad;
-
   --v:#ed3f4c;
   --p:#293446;
   --b:#f5f7fa;
-
   --green:#2ee59d;
   --green2:#15966d;
   --yellow:#e7bb55;
@@ -939,7 +933,6 @@ button{
 }
 
 </style>
-
 </head>
 
 <body>
@@ -948,409 +941,386 @@ button{
 
   <div class="header">
 
-```
-<div class="brand">
+    <div class="brand">
+      <h1>
+        RIFT <span>Double Radar</span>
+      </h1>
 
-  <h1>
-    RIFT <span>Double Radar</span>
-  </h1>
+      <p>
+        Radar estatístico · análise local · consenso de estratégias
+      </p>
+    </div>
 
-  <p>
-    Radar estatístico · análise local · consenso de estratégias
-  </p>
+    <div class="live-pill" id="livePill">
+      <span class="live-dot"></span>
 
-</div>
-
-<div class="live-pill" id="livePill">
-
-  <span class="live-dot"></span>
-
-  <span id="livePillText">
-    AO VIVO
-  </span>
-
-</div>
-```
+      <span id="livePillText">
+        AO VIVO
+      </span>
+    </div>
 
   </div>
 
   <div class="toolbar">
 
-```
-<button
-  class="btn primary"
-  onclick="forceDemo()"
->
-  🎲 Gerar demo RNG
-</button>
+    <button
+      class="btn primary"
+      onclick="forceDemo()"
+    >
+      🎲 Gerar demo RNG
+    </button>
 
-<button
-  class="btn success"
-  id="btnLive"
-  onclick="toggleLive()"
->
-  ⏸ Parar ao vivo
-</button>
+    <button
+      class="btn success"
+      id="btnLive"
+      onclick="toggleLive()"
+    >
+      ⏸ Parar ao vivo
+    </button>
 
-<button
-  class="btn blue"
-  id="btnAI"
-  onclick="forceAI()"
->
-  🧠 Analisar agora
-</button>
+    <button
+      class="btn blue"
+      id="btnAI"
+      onclick="forceAI()"
+    >
+      🧠 Analisar agora
+    </button>
 
-<button
-  class="btn"
-  onclick="manualRefresh()"
->
-  ↻ Atualizar
-</button>
-```
+    <button
+      class="btn"
+      onclick="manualRefresh()"
+    >
+      ↻ Atualizar
+    </button>
 
   </div>
 
   <div class="grid">
 
-```
-<div class="stat">
-  <div class="stat-label">RODADAS</div>
-  <span class="stat-value" id="nRod">0</span>
-</div>
+    <div class="stat">
+      <div class="stat-label">RODADAS</div>
+      <span class="stat-value" id="nRod">0</span>
+    </div>
 
-<div class="stat">
-  <div class="stat-label">VERMELHO</div>
-  <span class="stat-value" id="nV">0</span>
-</div>
+    <div class="stat">
+      <div class="stat-label">VERMELHO</div>
+      <span class="stat-value" id="nV">0</span>
+    </div>
 
-<div class="stat">
-  <div class="stat-label">PRETO</div>
-  <span class="stat-value" id="nP">0</span>
-</div>
+    <div class="stat">
+      <div class="stat-label">PRETO</div>
+      <span class="stat-value" id="nP">0</span>
+    </div>
 
-<div class="stat">
-  <div class="stat-label">BRANCO</div>
-  <span class="stat-value" id="nB">0</span>
-</div>
+    <div class="stat">
+      <div class="stat-label">BRANCO</div>
+      <span class="stat-value" id="nB">0</span>
+    </div>
 
-<div class="stat">
-  <div class="stat-label">STREAK</div>
-  <span class="stat-value small" id="nSt">—</span>
-</div>
+    <div class="stat">
+      <div class="stat-label">STREAK</div>
+      <span class="stat-value small" id="nSt">—</span>
+    </div>
 
-<div class="stat">
-  <div class="stat-label">GAP BRANCO</div>
-  <span class="stat-value" id="nGap">0</span>
-</div>
-```
+    <div class="stat">
+      <div class="stat-label">GAP BRANCO</div>
+      <span class="stat-value" id="nGap">0</span>
+    </div>
 
   </div>
 
   <div class="card">
 
-```
-<div class="card-head">
+    <div class="card-head">
 
-  <div class="card-title">
-    HISTÓRICO RECENTE
-  </div>
+      <div class="card-title">
+        HISTÓRICO RECENTE
+      </div>
 
-  <div class="card-meta" id="grafOk">
-    aguardando dados
-  </div>
+      <div class="card-meta" id="grafOk">
+        aguardando dados
+      </div>
 
-</div>
+    </div>
 
-<div class="dots" id="dots"></div>
-```
+    <div class="dots" id="dots"></div>
 
   </div>
 
   <div class="ai">
 
-```
-<div class="ai-top">
+    <div class="ai-top">
 
-  <div class="ai-label" id="aiLab">
-    RIFT ANALYZER
-  </div>
+      <div class="ai-label" id="aiLab">
+        RIFT ANALYZER
+      </div>
 
-  <div class="ai-model" id="mod">
-    aguardando modelo
-  </div>
+      <div class="ai-model" id="mod">
+        aguardando modelo
+      </div>
 
-  <div class="analysis-text" id="analysisText">
-    Aguardando nova rodada...
-  </div>
+      <div class="analysis-text" id="analysisText">
+        Aguardando nova rodada...
+      </div>
 
-  <div class="progress" id="progress">
+      <div class="progress" id="progress">
 
-    <div
-      class="progress-bar"
-      id="progressBar"
-    ></div>
+        <div
+          class="progress-bar"
+          id="progressBar"
+        ></div>
 
-  </div>
+      </div>
 
-  <div class="orb waiting" id="orb">
+      <div class="orb waiting" id="orb">
 
-    <div class="orb-inner">
+        <div class="orb-inner">
 
-      <strong id="conf">—</strong>
+          <strong id="conf">—</strong>
 
-      <small id="confLab">
-        aguardando dados
-      </small>
+          <small id="confLab">
+            aguardando dados
+          </small>
+
+        </div>
+
+      </div>
+
+      <div class="foco" id="foco">
+        ENTRADA: —
+      </div>
+
+      <div class="motivo" id="motivo">
+        Aguardando uma análise.
+      </div>
 
     </div>
 
-  </div>
+    <div class="analytics">
 
-  <div class="foco" id="foco">
-    ENTRADA: —
-  </div>
+      <div class="metric">
 
-  <div class="motivo" id="motivo">
-    Aguardando uma análise.
-  </div>
+        <label>
+          QUALIDADE
+        </label>
 
-</div>
+        <strong id="quality">
+          —
+        </strong>
 
-<div class="analytics">
+      </div>
 
-  <div class="metric">
+      <div class="metric">
 
-    <label>
-      QUALIDADE
-    </label>
+        <label>
+          CONSENSO
+        </label>
 
-    <strong id="quality">
-      —
-    </strong>
+        <strong id="consensus">
+          —
+        </strong>
 
-  </div>
+      </div>
 
-  <div class="metric">
+      <div class="metric">
 
-    <label>
-      CONSENSO
-    </label>
+        <label>
+          REGIME
+        </label>
 
-    <strong id="consensus">
-      —
-    </strong>
+        <strong id="regimeShort">
+          —
+        </strong>
 
-  </div>
+      </div>
 
-  <div class="metric">
+      <div class="metric">
 
-    <label>
-      REGIME
-    </label>
+        <label>
+          BACKTEST
+        </label>
 
-    <strong id="regimeShort">
-      —
-    </strong>
+        <strong id="backtestRate">
+          —
+        </strong>
 
-  </div>
+      </div>
 
-  <div class="metric">
-
-    <label>
-      BACKTEST
-    </label>
-
-    <strong id="backtestRate">
-      —
-    </strong>
-
-  </div>
-
-</div>
-```
+    </div>
 
   </div>
 
   <div class="signal" id="signalBox">
 
-```
-<div class="signal-head">
+    <div class="signal-head">
 
-  <div class="signal-label">
-    DECISÃO DA ANÁLISE
-  </div>
+      <div class="signal-label">
+        DECISÃO DA ANÁLISE
+      </div>
 
-  <div
-    class="status-badge"
-    id="signalStatus"
-  >
-    AGUARDANDO
-  </div>
+      <div
+        class="status-badge"
+        id="signalStatus"
+      >
+        AGUARDANDO
+      </div>
 
-</div>
+    </div>
 
-<h2 id="entrar">
-  ENTRADA: AGUARDANDO
-</h2>
+    <h2 id="entrar">
+      ENTRADA: AGUARDANDO
+    </h2>
 
-<div class="signal-sub" id="sinalSub">
-  O sistema ainda não concluiu a análise.
-</div>
+    <div class="signal-sub" id="sinalSub">
+      O sistema ainda não concluiu a análise.
+    </div>
 
-<div class="chips" id="chips"></div>
+    <div class="chips" id="chips"></div>
 
-<div class="padroes" id="pads">
-  Nenhuma análise disponível.
-</div>
-```
+    <div class="padroes" id="pads">
+      Nenhuma análise disponível.
+    </div>
 
   </div>
 
   <div class="bottom-grid">
 
-```
-<div class="card">
+    <div class="card">
 
-  <div class="section-title">
-    LEITURA DO REGIME
-  </div>
+      <div class="section-title">
+        LEITURA DO REGIME
+      </div>
 
-  <div class="regime">
+      <div class="regime">
 
-    <div>
+        <div>
 
-      <div
-        class="regime-name"
-        id="regimeName"
-      >
-        NEUTRO
+          <div
+            class="regime-name"
+            id="regimeName"
+          >
+            NEUTRO
+          </div>
+
+          <div
+            class="reasons"
+            id="regimeReasons"
+          >
+            Aguardando dados suficientes.
+          </div>
+
+        </div>
+
+        <div
+          class="regime-score"
+          id="regimeScore"
+        >
+          —
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="card">
+
+      <div class="section-title">
+        CONSENSO DAS ESTRATÉGIAS
       </div>
 
       <div
-        class="reasons"
-        id="regimeReasons"
+        class="consensus-list"
+        id="consensusList"
       >
-        Aguardando dados suficientes.
+
+        <div class="consensus-empty">
+          Aguardando estratégias...
+        </div>
+
       </div>
 
     </div>
-
-    <div
-      class="regime-score"
-      id="regimeScore"
-    >
-      —
-    </div>
-
-  </div>
-
-</div>
-
-<div class="card">
-
-  <div class="section-title">
-    CONSENSO DAS ESTRATÉGIAS
-  </div>
-
-  <div
-    class="consensus-list"
-    id="consensusList"
-  >
-    <div class="consensus-empty">
-      Aguardando estratégias...
-    </div>
-  </div>
-
-</div>
-```
 
   </div>
 
   <div class="wl">
 
-```
-<div class="stat">
+    <div class="stat">
 
-  <div class="stat-label">
-    ACERTOS
-  </div>
+      <div class="stat-label">
+        ACERTOS
+      </div>
 
-  <b class="ok" id="w">
-    0
-  </b>
+      <b class="ok" id="w">
+        0
+      </b>
 
-</div>
+    </div>
 
-<div class="stat">
+    <div class="stat">
 
-  <div class="stat-label">
-    ERROS
-  </div>
+      <div class="stat-label">
+        ERROS
+      </div>
 
-  <b class="bad" id="l">
-    0
-  </b>
+      <b class="bad" id="l">
+        0
+      </b>
 
-</div>
+    </div>
 
-<div class="stat">
+    <div class="stat">
 
-  <div class="stat-label">
-    PENDENTES
-  </div>
+      <div class="stat-label">
+        PENDENTES
+      </div>
 
-  <b id="pend">
-    0
-  </b>
+      <b id="pend">
+        0
+      </b>
 
-</div>
+    </div>
 
-<div class="stat">
+    <div class="stat">
 
-  <div class="stat-label">
-    ASSERTIVIDADE
-  </div>
+      <div class="stat-label">
+        ASSERTIVIDADE
+      </div>
 
-  <b id="acc">
-    0%
-  </b>
+      <b id="acc">
+        0%
+      </b>
 
-</div>
-```
+    </div>
 
   </div>
 
   <div class="card">
 
-```
-<div class="card-head">
+    <div class="card-head">
 
-  <div class="card-title">
-    LIVRO DE RESULTADOS
-  </div>
+      <div class="card-title">
+        LIVRO DE RESULTADOS
+      </div>
 
-  <div class="card-meta">
-    últimas análises
-  </div>
+      <div class="card-meta">
+        últimas análises
+      </div>
 
-</div>
+    </div>
 
-<div class="book" id="book">
-  Aguardando primeira entrada...
-</div>
-```
+    <div class="book" id="book">
+      Aguardando primeira entrada...
+    </div>
 
   </div>
 
   <div class="footer-note">
 
-```
-RIFT Double Radar utiliza dados históricos
-e modelos estatísticos/heurísticos.
-
-Nenhuma análise garante o resultado
-de uma rodada futura.
-```
+    RIFT Double Radar utiliza dados históricos
+    e modelos estatísticos/heurísticos.
+    Nenhuma análise garante o resultado
+    de uma rodada futura.
 
   </div>
 
@@ -1396,17 +1366,11 @@ function apiUrl(path){
 ========================================================= */
 
 let live = true;
-
 let lastKey = "";
-
 let timer = null;
-
 let items = [];
-
 let analysisRunning = false;
-
 let animationTimers = [];
-
 let lastAI = null;
 
 
@@ -1590,11 +1554,8 @@ function statsFrom(list){
   return {
 
     n,
-
     v:count("V"),
-
     p:count("P"),
-
     b:count("B"),
 
     last:
@@ -1602,7 +1563,6 @@ function statsFrom(list){
       null,
 
     streak,
-
     gap
 
   };
@@ -2062,13 +2022,11 @@ function renderMetrics(ai){
   const quality =
     numericValue(qualityRaw);
 
-
   let consensusRaw =
     ai.consensusPct ??
     ai.consensusPercent ??
     ai.consensoPct ??
     null;
-
 
   if(
     consensusRaw === null &&
@@ -2080,17 +2038,14 @@ function renderMetrics(ai){
 
   }
 
-
   const consensus =
     numericValue(consensusRaw);
-
 
   const regime =
     ai.regime ??
     ai.regimeName ??
     ai.regime_label ??
     null;
-
 
   const btRaw =
     ai.backtest?.taxa ??
@@ -2100,22 +2055,18 @@ function renderMetrics(ai){
     ai.backtest?.assertividade ??
     null;
 
-
   const bt =
     numericValue(btRaw);
-
 
   $("quality").textContent =
     quality !== null
       ? quality.toFixed(0) + "/100"
       : "—";
 
-
   $("consensus").textContent =
     consensus !== null
       ? consensus.toFixed(0) + "%"
       : "—";
-
 
   $("regimeShort").textContent =
     regime
@@ -2128,12 +2079,10 @@ function renderMetrics(ai){
         ).slice(0,18)
       : "—";
 
-
   $("backtestRate").textContent =
     bt !== null
       ? bt.toFixed(1) + "%"
       : "—";
-
 
   $("quality").className =
     quality !== null
@@ -2145,7 +2094,6 @@ function renderMetrics(ai){
               : "red"
         )
       : "";
-
 
   $("consensus").className =
     consensus !== null
@@ -2173,7 +2121,6 @@ function renderRegime(ai){
     ai.regime_label ??
     "NEUTRO";
 
-
   const scoreRaw =
     ai.regimeScore ??
     (
@@ -2182,10 +2129,8 @@ function renderRegime(ai){
         : null
     );
 
-
   const score =
     numericValue(scoreRaw);
-
 
   let reasons =
     ai.regimeReasons ??
@@ -2197,7 +2142,6 @@ function renderRegime(ai){
     ai.regimeMotivos ??
     [];
 
-
   if(!Array.isArray(reasons)){
 
     reasons =
@@ -2206,7 +2150,6 @@ function renderRegime(ai){
         : [];
 
   }
-
 
   $("regimeName").textContent =
     typeof regime === "object"
@@ -2220,12 +2163,10 @@ function renderRegime(ai){
           "NEUTRO"
         );
 
-
   $("regimeScore").textContent =
     score !== null
       ? score.toFixed(0) + "/100"
       : "—";
-
 
   $("regimeReasons").textContent =
     reasons.length
@@ -2252,7 +2193,6 @@ function normalizeStrategyList(ai){
     ai.estrategias ??
     ai.consensusStrategies ??
     null;
-
 
   if(
     source &&
@@ -2291,7 +2231,6 @@ function normalizeStrategyList(ai){
 
   }
 
-
   if(
     Array.isArray(source) &&
     source.length
@@ -2301,15 +2240,16 @@ function normalizeStrategyList(ai){
 
   }
 
-
   const legacy = [
 
     {
       id:"markov",
       nome:"Markov",
+
       entrada:
         ai.markovPick ??
         ai.markov?.entrada,
+
       score:
         ai.markovScore ??
         ai.markov?.score
@@ -2318,9 +2258,11 @@ function normalizeStrategyList(ai){
     {
       id:"density",
       nome:"Densidade",
+
       entrada:
         ai.densityPick ??
         ai.densidade?.entrada,
+
       score:
         ai.densityScore ??
         ai.densidade?.score
@@ -2329,9 +2271,11 @@ function normalizeStrategyList(ai){
     {
       id:"streak",
       nome:"Streak",
+
       entrada:
         ai.streakPick ??
         ai.streak?.entrada,
+
       score:
         ai.streakScore ??
         ai.streak?.score
@@ -2340,16 +2284,17 @@ function normalizeStrategyList(ai){
     {
       id:"alternation",
       nome:"Alternância",
+
       entrada:
         ai.alternationPick ??
         ai.alternancia?.entrada,
+
       score:
         ai.alternationScore ??
         ai.alternancia?.score
     }
 
   ];
-
 
   return legacy;
 
@@ -2361,10 +2306,8 @@ function renderConsensus(ai){
   const list =
     normalizeStrategyList(ai);
 
-
   const container =
     $("consensusList");
-
 
   if(
     !container
@@ -2373,7 +2316,6 @@ function renderConsensus(ai){
     return;
 
   }
-
 
   if(
     !list.length
@@ -2389,7 +2331,6 @@ function renderConsensus(ai){
 
   }
 
-
   container.innerHTML =
     list
       .map(
@@ -2404,7 +2345,6 @@ function renderConsensus(ai){
               "Estratégia"
             );
 
-
           const pick =
             String(
               item.entrada ??
@@ -2412,7 +2352,6 @@ function renderConsensus(ai){
               item.color ??
               "—"
             ).toUpperCase();
-
 
           let score =
             numericValue(
@@ -2422,7 +2361,6 @@ function renderConsensus(ai){
               item.percent ??
               item.taxa
             );
-
 
           if(
             score === null
@@ -2447,7 +2385,6 @@ function renderConsensus(ai){
 
           }
 
-
           score =
             Math.max(
               0,
@@ -2456,7 +2393,6 @@ function renderConsensus(ai){
                 score || 0
               )
             );
-
 
           const cor =
             pick === "V"
@@ -2467,9 +2403,7 @@ function renderConsensus(ai){
                   ? "BRANCO"
                   : "—";
 
-
           return `
-
             <div
               class="consensus-row"
               title="${safeText(nomeEstr)} · ${cor} · ${score.toFixed(0)}%"
@@ -2499,7 +2433,6 @@ function renderConsensus(ai){
               </span>
 
             </div>
-
           `;
 
         }
@@ -2521,7 +2454,6 @@ function renderSignal(ai){
   const status =
     $("signalStatus");
 
-
   let entrada =
     ai.entrada ??
     ai.pick ??
@@ -2529,14 +2461,12 @@ function renderSignal(ai){
     ai.nextEntry ??
     null;
 
-
   const noSignal =
     ai.sinal === false ||
     ai.signal === false ||
     ai.status === "SEM_SINAL" ||
     ai.status === "NO_SIGNAL" ||
     ai.noSignal === true;
-
 
   if(noSignal){
 
@@ -2548,13 +2478,11 @@ function renderSignal(ai){
       "no-signal"
     );
 
-
     status.textContent =
       "SEM SINAL";
 
     status.className =
       "status-badge warn";
-
 
     $("entrar").textContent =
       "ENTRADA: SEM SINAL";
@@ -2562,15 +2490,12 @@ function renderSignal(ai){
     $("entrar").className =
       "";
 
-
     $("sinalSub").textContent =
       ai.warning ||
       ai.motivo ||
       "As estratégias não atingiram o nível mínimo de concordância.";
 
-
     $("chips").innerHTML = `
-
       <span class="chip yellow">
         AGUARDAR
       </span>
@@ -2578,14 +2503,11 @@ function renderSignal(ai){
       <span class="chip">
         SEM ENTRADA
       </span>
-
     `;
-
 
     $("pads").innerHTML =
       Array.isArray(ai.padroes) &&
       ai.padroes.length
-
         ? ai.padroes
             .slice(0,8)
             .map(
@@ -2604,14 +2526,11 @@ function renderSignal(ai){
                 }`
             )
             .join("<br>")
-
         : "O sistema não encontrou consenso suficiente.";
-
 
     return;
 
   }
-
 
   signalBox.classList.remove(
     "no-signal"
@@ -2621,7 +2540,6 @@ function renderSignal(ai){
     "ready"
   );
 
-
   if(!entrada){
 
     status.textContent =
@@ -2630,13 +2548,11 @@ function renderSignal(ai){
     status.className =
       "status-badge";
 
-
     $("entrar").textContent =
       "ENTRADA: AGUARDANDO";
 
     $("entrar").className =
       "";
-
 
     $("sinalSub").textContent =
       "A análise ainda não definiu uma direção.";
@@ -2651,19 +2567,16 @@ function renderSignal(ai){
 
   }
 
-
   entrada =
     String(
       entrada
     ).toUpperCase();
-
 
   status.textContent =
     "ANÁLISE PRONTA";
 
   status.className =
     "status-badge good";
-
 
   $("entrar").textContent =
     "ENTRADA: " +
@@ -2672,12 +2585,10 @@ function renderSignal(ai){
   $("entrar").className =
     entrada;
 
-
   $("sinalSub").textContent =
     ai.cached
       ? "Resultado mantido até a próxima rodada."
       : "Resultado calculado a partir do histórico disponível.";
-
 
   const conf =
     numericValue(
@@ -2685,12 +2596,10 @@ function renderSignal(ai){
       ai.confidence
     );
 
-
   const risco =
     ai.risco ??
     ai.risk ??
     "RISCO";
-
 
   const consenso =
     numericValue(
@@ -2704,9 +2613,7 @@ function renderSignal(ai){
       )
     );
 
-
   $("chips").innerHTML =
-
     `<span class="chip green">
       ${nome(entrada)}
     </span>` +
@@ -2741,16 +2648,13 @@ function renderSignal(ai){
           </span>`
     );
 
-
   const pads =
     Array.isArray(ai.padroes)
       ? ai.padroes
       : normalizeStrategyList(ai);
 
-
   $("pads").innerHTML =
     pads.length
-
       ? pads
           .slice(0,8)
           .map(
@@ -2771,7 +2675,6 @@ function renderSignal(ai){
               }`
           )
           .join("<br>")
-
       : "Nenhuma estratégia adicional retornada.";
 
 }
@@ -2784,13 +2687,13 @@ function renderSignal(ai){
 function renderAI(ai){
 
   if(!ai){
-    return;
-  }
 
+    return;
+
+  }
 
   lastAI =
     ai;
-
 
   $("mod").textContent =
     [
@@ -2801,13 +2704,11 @@ function renderAI(ai){
       .join(" · ") ||
     "motor local";
 
-
   $("foco").textContent =
     ai.entrada
       ? "ENTRADA: " +
         nome(ai.entrada)
       : "ENTRADA: SEM SINAL";
-
 
   $("foco").className =
     ai.entrada
@@ -2817,36 +2718,25 @@ function renderAI(ai){
         ).toUpperCase()
       : "foco";
 
-
   $("motivo").textContent =
     ai.motivo ||
     ai.warning ||
     "Análise concluída.";
 
-
   renderSignal(ai);
-
   renderMetrics(ai);
-
   renderRegime(ai);
-
   renderConsensus(ai);
-
   renderBook(ai);
-
 
   const conf =
     ai.conf ??
     ai.confidence ??
     null;
 
-
   finishAnalysisAnimation({
-
     ...ai,
-
     conf
-
   });
 
 }
@@ -2866,7 +2756,6 @@ function renderBook(ai){
       ai.performance?.wins
     ) ?? 0;
 
-
   const losses =
     numericValue(
       ai.erros ??
@@ -2875,13 +2764,11 @@ function renderBook(ai){
       ai.performance?.losses
     ) ?? 0;
 
-
   let pending =
     ai.pendentes ??
     ai.pendingCount ??
     ai.performance?.pending ??
     null;
-
 
   if(
     typeof pending === "object" &&
@@ -2893,10 +2780,8 @@ function renderBook(ai){
 
   }
 
-
   pending =
     numericValue(pending) ?? 0;
-
 
   const accuracy =
     numericValue(
@@ -2907,29 +2792,23 @@ function renderBook(ai){
       ai.performance?.winRate
     ) ?? 0;
 
-
   $("w").textContent =
     wins;
-
 
   $("l").textContent =
     losses;
 
-
   $("pend").textContent =
     pending;
-
 
   $("acc").textContent =
     accuracy.toFixed(1) +
     "%";
 
-
   const book =
     Array.isArray(ai.book)
       ? ai.book
       : [];
-
 
   if(
     !book.length
@@ -2941,7 +2820,6 @@ function renderBook(ai){
     return;
 
   }
-
 
   $("book").innerHTML =
     book
@@ -2955,15 +2833,12 @@ function renderBook(ai){
               ""
             ).toUpperCase();
 
-
           let cls =
             "pending";
-
 
           let statusLabel =
             status ||
             "PENDENTE";
-
 
           if(
             status === "WIN" ||
@@ -2989,17 +2864,14 @@ function renderBook(ai){
 
           }
 
-
           const timestamp =
             r.timestamp ||
             r.ts ||
             r.createdAt ||
             null;
 
-
           let time =
             "--:--:--";
-
 
           if(timestamp){
 
@@ -3034,14 +2906,12 @@ function renderBook(ai){
 
           }
 
-
           const entry =
             String(
               r.entrada ??
               r.entry ??
               "—"
             ).toUpperCase();
-
 
           const result =
             String(
@@ -3050,7 +2920,6 @@ function renderBook(ai){
               "—"
             ).toUpperCase();
 
-
           const roll =
             r.roll !== null &&
             r.roll !== undefined &&
@@ -3058,9 +2927,7 @@ function renderBook(ai){
               ? ` ${r.roll}`
               : "";
 
-
           return `
-
             <div class="book-row ${cls}">
 
               <span class="book-time">
@@ -3086,7 +2953,6 @@ function renderBook(ai){
               </span>
 
             </div>
-
           `;
 
         }
@@ -3105,7 +2971,7 @@ async function pullHistory(){
   const response =
     await fetch(
       apiUrl(
-        "/api/history?_=" +
+        "/api/history?_" +
         Date.now()
       ),
       {
@@ -3113,10 +2979,8 @@ async function pullHistory(){
       }
     );
 
-
   const r =
     await response.json();
-
 
   if(!r.ok){
 
@@ -3127,7 +2991,6 @@ async function pullHistory(){
 
   }
 
-
   items =
     (r.items || [])
       .map(
@@ -3135,7 +2998,6 @@ async function pullHistory(){
 
           const roll =
             Number(x.roll);
-
 
           return {
 
@@ -3162,7 +3024,6 @@ async function pullHistory(){
         }
       );
 
-
   const validTimes =
     items
       .map(
@@ -3176,7 +3037,6 @@ async function pullHistory(){
       .filter(
         Number.isFinite
       );
-
 
   if(
     validTimes.length >= 2
@@ -3206,7 +3066,6 @@ async function pullHistory(){
 
   }
 
-
   $("livePillText").textContent =
     "AO VIVO · " +
     (
@@ -3214,13 +3073,11 @@ async function pullHistory(){
       "HISTÓRICO"
     );
 
-
   $("livePill")
     .classList
     .remove(
       "off"
     );
-
 
   $("grafOk").textContent =
     (
@@ -3230,7 +3087,6 @@ async function pullHistory(){
     " · " +
     items.length +
     " rodadas";
-
 
   renderHist(items);
 
@@ -3250,7 +3106,7 @@ async function refreshBook(){
     const response =
       await fetch(
         apiUrl(
-          "/api/book?_=" +
+          "/api/book?_" +
           Date.now()
         ),
         {
@@ -3258,10 +3114,8 @@ async function refreshBook(){
         }
       );
 
-
     const data =
       await response.json();
-
 
     if(data){
 
@@ -3293,23 +3147,17 @@ function keyOf(list){
 
   }
 
-
   const last =
     list[
       list.length - 1
     ];
 
-
   return [
 
     last.id || "",
-
     last.color || "",
-
     last.roll ?? "",
-
     last.instant || "",
-
     list.length
 
   ].join("|");
@@ -3334,28 +3182,22 @@ async function askAI(
 
   }
 
-
   startAnalysisAnimation();
-
 
   $("btnAI").disabled =
     true;
 
-
   await sleep(450);
-
 
   const colors =
     items.map(
       x => x.color
     );
 
-
   const rolls =
     items.map(
       x => x.roll
     );
-
 
   try{
 
@@ -3363,7 +3205,6 @@ async function askAI(
       await fetch(
         apiUrl("/api/ai"),
         {
-
           method:"POST",
 
           headers:{
@@ -3375,9 +3216,7 @@ async function askAI(
             JSON.stringify({
 
               colors,
-
               rolls,
-
               items,
 
               force:
@@ -3388,9 +3227,7 @@ async function askAI(
         }
       );
 
-
     let r;
-
 
     try{
 
@@ -3405,7 +3242,6 @@ async function askAI(
 
     }
 
-
     if(!response.ok){
 
       const message =
@@ -3417,13 +3253,11 @@ async function askAI(
               response.status
         );
 
-
       throw new Error(
         message
       );
 
     }
-
 
     if(
       !r.ok &&
@@ -3436,23 +3270,18 @@ async function askAI(
 
     }
 
-
     renderAI(r);
-
 
   }catch(e){
 
     analysisRunning =
       false;
 
-
     clearAnimation();
-
 
     setOrbState(
       "waiting"
     );
-
 
     setAnalysisStatus(
       "⚠ " +
@@ -3463,15 +3292,12 @@ async function askAI(
       0
     );
 
-
     $("motivo").textContent =
       e.message ||
       "Não foi possível concluir a análise.";
 
-
     $("signalStatus").textContent =
       "ERRO / AGUARDANDO";
-
 
     $("signalStatus").className =
       "status-badge warn";
@@ -3498,15 +3324,12 @@ async function tick(){
 
   }
 
-
   try{
 
     await pullHistory();
 
-
     const currentKey =
       keyOf(items);
-
 
     if(
       currentKey &&
@@ -3518,17 +3341,14 @@ async function tick(){
         currentKey
       );
 
-
       lastKey =
         currentKey;
-
 
       await askAI(false);
 
     }else{
 
       await refreshBook();
-
 
       if(
         !analysisRunning &&
@@ -3543,22 +3363,18 @@ async function tick(){
 
     }
 
-
   }catch(e){
 
     console.error(e);
 
-
     $("livePillText").textContent =
       "ERRO DE CONEXÃO";
-
 
     $("livePill")
       .classList
       .add(
         "off"
       );
-
 
     $("grafOk").textContent =
       "falha: " +
@@ -3578,12 +3394,10 @@ function toggleLive(){
   live =
     !live;
 
-
   $("btnLive").textContent =
     live
       ? "⏸ Parar ao vivo"
       : "▶ Iniciar ao vivo";
-
 
   if(live){
 
@@ -3593,10 +3407,8 @@ function toggleLive(){
         "off"
       );
 
-
     $("livePillText").textContent =
       "RECONEXÃO";
-
 
     tick();
 
@@ -3607,7 +3419,6 @@ function toggleLive(){
       .add(
         "off"
       );
-
 
     $("livePillText").textContent =
       "PAUSADO";
@@ -3628,14 +3439,12 @@ async function manualRefresh(){
       ".btn[onclick='manualRefresh()']"
     );
 
-
   if(button){
 
     button.disabled =
       true;
 
   }
-
 
   try{
 
@@ -3671,10 +3480,8 @@ async function forceAI(){
 
     await pullHistory();
 
-
     lastKey =
       keyOf(items);
-
 
     await askAI(true);
 
@@ -3699,7 +3506,6 @@ async function forceDemo(){
       15
     );
 
-
   const demo = {
 
     id:
@@ -3717,20 +3523,16 @@ async function forceDemo(){
 
   };
 
-
   items.push(
     demo
   );
-
 
   renderHist(
     items
   );
 
-
   lastKey =
     keyOf(items);
-
 
   await askAI(true);
 
@@ -3766,17 +3568,14 @@ setOrbState(
   "waiting"
 );
 
-
 setAnalysisStatus(
   "Aguardando nova rodada...",
   0
 );
 
-
 renderHist(
   []
 );
-
 
 if(timer){
 
@@ -3786,18 +3585,15 @@ if(timer){
 
 }
 
-
 timer =
   setInterval(
     tick,
     1500
   );
 
-
 tick();
 
 </script>
 
 </body>
-
 </html>
