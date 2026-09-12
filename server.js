@@ -5,18 +5,7 @@
  RIFT DOUBLE RADAR
  SERVER ONLINE
 ============================================================
-
- Compatível com:
- - Railway
- - Render
- - VPS
- - Node.js 18+
-
- Arquivos:
-   server.js
-   index.html
-   package.json
-
+ Compatível com Railway / Render / VPS / Node.js 18+
 ============================================================
 */
 
@@ -28,7 +17,7 @@ const { URL } = require("url");
 
 /*
 ============================================================
- CONFIGURAÇÃO DO SERVIDOR
+ CONFIGURAÇÃO
 ============================================================
 */
 
@@ -41,7 +30,7 @@ const PORT = Number(
 const HOST = "0.0.0.0";
 
 const VERSION =
-  "RIFT Double Radar ONLINE 5.0.1";
+  "RIFT Double Radar ONLINE 5.0.2";
 
 /*
 ============================================================
@@ -53,9 +42,12 @@ const TIPMINER_URL =
   "https://api.core.public.tipminer.com/v1/double/rounds/6ee2f33f-7dbf-40ae-b01c-b05368c806ba/history?limit=200&timezone=UTC";
 
 const BLAZE_URLS = [
-  "https://blaze.bet.br/api/roulette_games/recent",
-  "https://blaze.com/api/roulette_games/recent"
+  "https://blaze.com/api/roulette_games/recent",
+  "https://blaze.bet.br/api/roulette_games/recent"
 ];
+
+const SOURCE_TIMEOUT = 10000;
+const HISTORY_CACHE_TIME = 1500;
 
 /*
 ============================================================
@@ -145,9 +137,7 @@ function requestUrl(
         url = new URL(target);
       } catch (err) {
         reject(
-          new Error(
-            "URL inválida"
-          )
+          new Error("URL inválida")
         );
         return;
       }
@@ -158,23 +148,24 @@ function requestUrl(
           : http;
 
       const method =
-        options.method ||
-        "GET";
+        options.method || "GET";
 
       const body =
-        options.body ||
-        "";
+        options.body || "";
 
       const timeout =
         options.timeout ||
-        15000;
+        SOURCE_TIMEOUT;
 
       const headers = {
         "User-Agent":
-          "Mozilla/5.0 RIFT-Double-Radar",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
 
         "Accept":
           "application/json, text/plain, */*",
+
+        "Accept-Language":
+          "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
 
         "Cache-Control":
           "no-cache",
@@ -182,21 +173,18 @@ function requestUrl(
         "Pragma":
           "no-cache",
 
+        "Connection":
+          "keep-alive",
+
         ...(options.headers || {})
       };
 
       if (body) {
-        headers[
-          "Content-Type"
-        ] =
+        headers["Content-Type"] =
           "application/json";
 
-        headers[
-          "Content-Length"
-        ] =
-          Buffer.byteLength(
-            body
-          );
+        headers["Content-Length"] =
+          Buffer.byteLength(body);
       }
 
       const req =
@@ -206,8 +194,7 @@ function requestUrl(
               url.hostname,
 
             port:
-              url.port ||
-              undefined,
+              url.port || undefined,
 
             path:
               url.pathname +
@@ -223,9 +210,7 @@ function requestUrl(
           res => {
             let data = "";
 
-            res.setEncoding(
-              "utf8"
-            );
+            res.setEncoding("utf8");
 
             res.on(
               "data",
@@ -239,8 +224,7 @@ function requestUrl(
               () => {
                 resolve({
                   status:
-                    res.statusCode ||
-                    0,
+                    res.statusCode || 0,
 
                   headers:
                     res.headers,
@@ -265,7 +249,7 @@ function requestUrl(
 
           reject(
             new Error(
-              "Timeout"
+              `Timeout após ${timeout}ms`
             )
           );
         }
@@ -288,7 +272,7 @@ function requestUrl(
 
 async function fetchJson(
   url,
-  timeout = 15000
+  timeout = SOURCE_TIMEOUT
 ) {
   const result =
     await requestUrl(
@@ -315,7 +299,7 @@ async function fetchJson(
     return JSON.parse(
       result.body
     );
-  } catch (err) {
+  } catch (_) {
     throw new Error(
       "Resposta não é JSON válido"
     );
@@ -341,9 +325,7 @@ async function postJson(
         method: "POST",
         timeout,
         body:
-          JSON.stringify(
-            body
-          ),
+          JSON.stringify(body),
         headers
       }
     );
@@ -513,16 +495,13 @@ function normalizeItems(
         }
 
         if (
-          typeof item ===
-          "number"
+          typeof item === "number"
         ) {
           const roll =
             Number(item);
 
           const color =
-            normalizeColor(
-              roll
-            );
+            normalizeColor(roll);
 
           if (!color) {
             return null;
@@ -556,9 +535,7 @@ function normalizeItems(
           Number(rawRoll);
 
         if (
-          !Number.isFinite(
-            roll
-          )
+          !Number.isFinite(roll)
         ) {
           roll = null;
         }
@@ -653,20 +630,55 @@ async function getHistory(
     historyCache.data &&
     Date.now() -
       historyCache.time <
-      1200
+      HISTORY_CACHE_TIME
   ) {
     return historyCache.data;
   }
 
+  function saveHistory(
+    source,
+    items
+  ) {
+    historyCache = {
+      data: {
+        source,
+        items
+      },
+
+      time:
+        Date.now()
+    };
+
+    sourceStatus = {
+      ...sourceStatus,
+
+      source,
+
+      lastSuccess:
+        new Date().toISOString(),
+
+      lastError:
+        null
+    };
+
+    return historyCache.data;
+  }
+
+  /*
+  ============================================================
+  TIPMINER
+  ============================================================
+  */
+
   try {
     console.log(
-      "[history] consultando TipMiner..."
+      "[history] tentando TipMiner..."
     );
 
     const json =
       await fetchJson(
         TIPMINER_URL,
-        15000
+        SOURCE_TIMEOUT
       );
 
     const arr =
@@ -689,51 +701,44 @@ async function getHistory(
     if (
       items.length > 0
     ) {
-      sourceStatus = {
-        ...sourceStatus,
+      sourceStatus.tipminer =
+        "online";
 
-        source:
-          "tipminer",
-
-        tipminer:
-          "online",
-
-        lastSuccess:
-          new Date().toISOString(),
-
-        lastError:
-          null
-      };
-
-      historyCache = {
-        data: {
-          source:
-            "tipminer",
-
-          items
-        },
-
-        time:
-          Date.now()
-      };
-
-      return historyCache.data;
+      return saveHistory(
+        "tipminer",
+        items
+      );
     }
 
     sourceStatus.tipminer =
       "empty";
   } catch (err) {
+    const message =
+      String(
+        err.message || err
+      );
+
     sourceStatus.tipminer =
-      "offline";
+      message.includes(
+        "HTTP 403"
+      )
+        ? "blocked"
+        : "offline";
 
     sourceStatus.lastError =
-      err.message;
+      message;
 
     console.log(
-      "[history] TipMiner:",
-      err.message
+      "[history] TipMiner falhou:",
+      message
     );
   }
+
+  /*
+  ============================================================
+  BLAZE
+  ============================================================
+  */
 
   for (
     const url of BLAZE_URLS
@@ -744,14 +749,61 @@ async function getHistory(
         url
       );
 
-      const json =
-        await fetchJson(
+      const result =
+        await requestUrl(
           url,
-          15000
+          {
+            method:
+              "GET",
+
+            timeout:
+              SOURCE_TIMEOUT,
+
+            headers: {
+              "Referer":
+                "https://blaze.com/",
+
+              "Origin":
+                "https://blaze.com"
+            }
+          }
         );
+
+      console.log(
+        `[history] Blaze HTTP ${result.status}`
+      );
+
+      if (
+        result.status < 200 ||
+        result.status >= 300
+      ) {
+        throw new Error(
+          `HTTP ${result.status}: ${result.body.slice(
+            0,
+            300
+          )}`
+        );
+      }
+
+      let json;
+
+      try {
+        json =
+          JSON.parse(
+            result.body
+          );
+      } catch (_) {
+        throw new Error(
+          "Blaze retornou conteúdo que não é JSON."
+        );
+      }
 
       const arr =
         extractArray(json);
+
+      console.log(
+        `[history] Blaze bruto: ${arr.length}`
+      );
 
       const items =
         normalizeItems(
@@ -766,46 +818,37 @@ async function getHistory(
       if (
         items.length > 0
       ) {
-        sourceStatus = {
-          ...sourceStatus,
+        sourceStatus.blaze =
+          "online";
 
-          source:
-            "blaze",
-
-          blaze:
-            "online",
-
-          lastSuccess:
-            new Date().toISOString(),
-
-          lastError:
-            null
-        };
-
-        historyCache = {
-          data: {
-            source:
-              "blaze",
-
-            items
-          },
-
-          time:
-            Date.now()
-        };
-
-        return historyCache.data;
+        return saveHistory(
+          "blaze",
+          items
+        );
       }
+
+      sourceStatus.blaze =
+        "empty";
     } catch (err) {
+      sourceStatus.blaze =
+        "offline";
+
+      sourceStatus.lastError =
+        String(
+          err.message || err
+        );
+
       console.log(
-        "[history] Blaze:",
+        "[history] Blaze falhou:",
         err.message
       );
     }
   }
 
   throw new Error(
-    "Não foi possível obter o histórico das fontes externas."
+    "Nenhuma fonte externa de histórico está disponível no momento. " +
+    `TipMiner: ${sourceStatus.tipminer} | ` +
+    `Blaze: ${sourceStatus.blaze}`
   );
 }
 
@@ -824,8 +867,7 @@ function itemTime(
 
   if (
     item.instant === null ||
-    item.instant ===
-      undefined
+    item.instant === undefined
   ) {
     return NaN;
   }
@@ -918,7 +960,6 @@ function round1(
   );
 }
 
-/* CORREÇÃO: estava faltando */
 function round3(
   value
 ) {
@@ -1110,7 +1151,6 @@ function markov(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1142,8 +1182,7 @@ function markov(
         colors[i + 1];
 
       if (
-        c[next] !==
-        undefined
+        c[next] !== undefined
       ) {
         c[next]++;
         total++;
@@ -1155,7 +1194,6 @@ function markov(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1245,7 +1283,6 @@ function streakStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1276,9 +1313,7 @@ function alternationStrategy(
     colors.slice(-10);
 
   const a =
-    alternation(
-      recent
-    );
+    alternation(recent);
 
   const last =
     recent[
@@ -1297,7 +1332,6 @@ function alternationStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1326,9 +1360,7 @@ function whiteStrategy(
   colors
 ) {
   const gap =
-    getWhiteGap(
-      colors
-    );
+    getWhiteGap(colors);
 
   if (
     gap < 20
@@ -1380,7 +1412,6 @@ function frequencyStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1416,15 +1447,11 @@ function windowStrategy(
 
   if (
     recent.length <
-    Math.min(
-      5,
-      size
-    )
+    Math.min(5, size)
   ) {
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1439,7 +1466,6 @@ function windowStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1474,7 +1500,6 @@ function repeatPatternStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1484,10 +1509,7 @@ function repeatPatternStrategy(
     colors.slice(-3);
 
   const prev3 =
-    colors.slice(
-      -6,
-      -3
-    );
+    colors.slice(-6, -3);
 
   if (
     last3.length !== 3 ||
@@ -1496,7 +1518,6 @@ function repeatPatternStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1513,9 +1534,7 @@ function repeatPatternStrategy(
       [
         "V",
         "P"
-      ].includes(
-        last
-      )
+      ].includes(last)
     ) {
       return {
         entrada:
@@ -1537,7 +1556,6 @@ function repeatPatternStrategy(
   return {
     entrada:
       null,
-
     score:
       0
   };
@@ -1552,7 +1570,6 @@ function transitionStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1614,7 +1631,6 @@ function transitionStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1629,10 +1645,7 @@ function transitionStrategy(
 
   const total =
     entries.reduce(
-      (
-        sum,
-        x
-      ) =>
+      (sum, x) =>
         sum + x[1],
       0
     );
@@ -1641,7 +1654,6 @@ function transitionStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1709,7 +1721,6 @@ function pressureStrategy(
   return {
     entrada:
       null,
-
     score:
       0
   };
@@ -1733,7 +1744,6 @@ function lastPairStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1781,7 +1791,6 @@ function balanceStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1803,7 +1812,6 @@ function balanceStrategy(
     return {
       entrada:
         null,
-
       score:
         0
     };
@@ -1934,72 +1942,43 @@ function getStrategies(
       markov(colors),
 
     density:
-      densityStrategy(
-        colors
-      ),
+      densityStrategy(colors),
 
     streak:
-      streakStrategy(
-        colors
-      ),
+      streakStrategy(colors),
 
     alternation:
-      alternationStrategy(
-        colors
-      ),
+      alternationStrategy(colors),
 
     white:
-      whiteStrategy(
-        colors
-      ),
+      whiteStrategy(colors),
 
     frequency:
-      frequencyStrategy(
-        colors
-      ),
+      frequencyStrategy(colors),
 
     window5:
-      windowStrategy(
-        colors,
-        5
-      ),
+      windowStrategy(colors, 5),
 
     window10:
-      windowStrategy(
-        colors,
-        10
-      ),
+      windowStrategy(colors, 10),
 
     window20:
-      windowStrategy(
-        colors,
-        20
-      ),
+      windowStrategy(colors, 20),
 
     repeat:
-      repeatPatternStrategy(
-        colors
-      ),
+      repeatPatternStrategy(colors),
 
     transition:
-      transitionStrategy(
-        colors
-      ),
+      transitionStrategy(colors),
 
     pressure:
-      pressureStrategy(
-        colors
-      ),
+      pressureStrategy(colors),
 
     lastPair:
-      lastPairStrategy(
-        colors
-      ),
+      lastPairStrategy(colors),
 
     balance:
-      balanceStrategy(
-        colors
-      )
+      balanceStrategy(colors)
   };
 }
 
@@ -2106,23 +2085,17 @@ function backtest(
 
   for (
     let i = 20;
-    i <
-      colors.length;
+    i < colors.length;
     i++
   ) {
     const history =
-      colors.slice(
-        0,
-        i
-      );
+      colors.slice(0, i);
 
     const actual =
       colors[i];
 
     const strategies =
-      getStrategies(
-        history
-      );
+      getStrategies(history);
 
     for (
       const name of names
@@ -2167,25 +2140,18 @@ function backtest(
     );
 
   for (
-    let i =
-      recentStart;
-    i <
-      colors.length;
+    let i = recentStart;
+    i < colors.length;
     i++
   ) {
     const history =
-      colors.slice(
-        0,
-        i
-      );
+      colors.slice(0, i);
 
     const actual =
       colors[i];
 
     const strategies =
-      getStrategies(
-        history
-      );
+      getStrategies(history);
 
     for (
       const name of names
@@ -2254,8 +2220,7 @@ function backtest(
 
     const confidenceSample =
       clamp(
-        stat.testes /
-          40,
+        stat.testes / 40,
         0,
         1
       );
@@ -2264,15 +2229,13 @@ function backtest(
       round1(
         stat.taxaAjustada *
           confidenceSample +
-          50 *
-            (1 -
-              confidenceSample)
+        50 *
+          (1 -
+            confidenceSample)
       );
 
     const base =
-      BASE_WEIGHTS[
-        name
-      ] || 1;
+      BASE_WEIGHTS[name] || 1;
 
     let factor =
       1 +
@@ -2300,9 +2263,7 @@ function backtest(
     }
 
     stat.fator =
-      round1(
-        factor
-      );
+      round1(factor);
 
     stat.peso =
       round3(
@@ -2355,8 +2316,7 @@ function backtest(
     ranking,
 
     melhor:
-      ranking[0] ||
-      null,
+      ranking[0] || null,
 
     amostra:
       colors.length,
@@ -2388,27 +2348,19 @@ function detectRegime(
   }
 
   const streak =
-    getStreak(
-      colors
-    );
+    getStreak(colors);
 
   const recent =
     colors.slice(-15);
 
   const d =
-    density(
-      recent
-    );
+    density(recent);
 
   const whiteGap =
-    getWhiteGap(
-      colors
-    );
+    getWhiteGap(colors);
 
   const alt =
-    alternation(
-      recent
-    );
+    alternation(recent);
 
   if (
     streak.length >= 4 &&
@@ -2518,9 +2470,7 @@ function calculateStability(
   colors,
   entrada
 ) {
-  if (
-    !entrada
-  ) {
+  if (!entrada) {
     return 0;
   }
 
@@ -2538,24 +2488,17 @@ function calculateStability(
     const size of windows
   ) {
     const sample =
-      colors.slice(
-        -size
-      );
+      colors.slice(-size);
 
     if (
       sample.length <
-      Math.min(
-        5,
-        size
-      )
+      Math.min(5, size)
     ) {
       continue;
     }
 
     const d =
-      density(
-        sample
-      );
+      density(sample);
 
     let suggestion =
       null;
@@ -2649,8 +2592,7 @@ function calculateConsensus(
 
     const score =
       clamp(
-        result.score ||
-          50,
+        result.score || 50,
         0,
         100
       );
@@ -2676,12 +2618,11 @@ function calculateConsensus(
   }
 
   const sorted =
-    Object.entries(
-      votes
-    ).sort(
-      (a, b) =>
-        b[1] - a[1]
-    );
+    Object.entries(votes)
+      .sort(
+        (a, b) =>
+          b[1] - a[1]
+      );
 
   const winner =
     sorted[0] || [
@@ -2696,16 +2637,12 @@ function calculateConsensus(
     ];
 
   const total =
-    Object.values(
-      votes
-    ).reduce(
-      (
-        sum,
-        value
-      ) =>
-        sum + value,
-      0
-    );
+    Object.values(votes)
+      .reduce(
+        (sum, value) =>
+          sum + value,
+        0
+      );
 
   const consensus =
     total
@@ -2791,10 +2728,7 @@ function calculateQuality(
   ) {
     backRate =
       relevant.reduce(
-        (
-          sum,
-          stat
-        ) =>
+        (sum, stat) =>
           sum +
           stat.taxaAjustada,
         0
@@ -2803,10 +2737,7 @@ function calculateQuality(
 
     recentRate =
       relevant.reduce(
-        (
-          sum,
-          stat
-        ) =>
+        (sum, stat) =>
           sum +
           stat.recenteTaxa,
         0
@@ -2843,14 +2774,10 @@ function calculateQuality(
       ),
 
     backRate:
-      round1(
-        backRate
-      ),
+      round1(backRate),
 
     recentRate:
-      round1(
-        recentRate
-      )
+      round1(recentRate)
   };
 }
 
@@ -2896,14 +2823,10 @@ function analyzeColors(
   }
 
   const strategies =
-    getStrategies(
-      clean
-    );
+    getStrategies(clean);
 
   const back =
-    backtest(
-      clean
-    );
+    backtest(clean);
 
   const consensus =
     calculateConsensus(
@@ -2912,9 +2835,7 @@ function analyzeColors(
     );
 
   const regime =
-    detectRegime(
-      clean
-    );
+    detectRegime(clean);
 
   const stability =
     calculateStability(
@@ -3020,66 +2941,59 @@ function analyzeColors(
     );
 
   const strategyRows =
-    Object.keys(
-      strategies
-    ).map(
-      name => {
-        const s =
-          strategies[name];
+    Object.keys(strategies)
+      .map(
+        name => {
+          const s =
+            strategies[name];
 
-        const stat =
-          back.stats[name];
+          const stat =
+            back.stats[name];
 
-        return {
-          estrategia:
-            name,
+          return {
+            estrategia:
+              name,
 
-          nome:
-            STRATEGY_LABELS[name],
+            nome:
+              STRATEGY_LABELS[name],
 
-          entrada:
-            s?.entrada ||
-            null,
+            entrada:
+              s?.entrada || null,
 
-          score:
-            round1(
-              s?.score ||
-                0
-            ),
+            score:
+              round1(
+                s?.score || 0
+              ),
 
-          peso:
-            round3(
-              stat?.peso ||
-                BASE_WEIGHTS[
-                  name
-                ] ||
+            peso:
+              round3(
+                stat?.peso ||
+                BASE_WEIGHTS[name] ||
                 1
-            ),
+              ),
 
-          taxa:
-            round1(
-              stat?.taxa ||
+            taxa:
+              round1(
+                stat?.taxa || 0
+              ),
+
+            recenteTaxa:
+              round1(
+                stat?.recenteTaxa ||
                 0
-            ),
+              ),
 
-          recenteTaxa:
-            round1(
-              stat?.recenteTaxa ||
-                0
-            ),
-
-          taxaAjustada:
-            round1(
-              stat?.taxaAjustada ||
+            taxaAjustada:
+              round1(
+                stat?.taxaAjustada ||
                 50
-            ),
+              ),
 
-          testes:
-            stat?.testes ||
-            0
-        };
-      }
-    );
+            testes:
+              stat?.testes || 0
+          };
+        }
+      );
 
   return {
     version:
@@ -3129,9 +3043,7 @@ function analyzeColors(
     },
 
     stability:
-      round1(
-        stability
-      ),
+      round1(stability),
 
     quality:
       quality.quality,
@@ -3169,18 +3081,10 @@ function analyzeColors(
 */
 
 const PERFORMANCE = {
-  total:
-    0,
-
-  wins:
-    0,
-
-  losses:
-    0,
-
-  pushes:
-    0,
-
+  total: 0,
+  wins: 0,
+  losses: 0,
+  pushes: 0,
   history: []
 };
 
@@ -3225,8 +3129,8 @@ function registerResult(
   );
 
   if (
-    PERFORMANCE.history
-      .length > 500
+    PERFORMANCE.history.length >
+    500
   ) {
     PERFORMANCE.history =
       PERFORMANCE.history.slice(
@@ -3446,8 +3350,7 @@ ${JSON.stringify(
 HISTÓRICO:
 
 ${JSON.stringify(
-  payload.colors ||
-    [],
+  payload.colors || [],
   null,
   2
 )}
@@ -3555,8 +3458,7 @@ Responda em JSON com:
         ),
 
       reason:
-        parsed.reason ||
-        "",
+        parsed.reason || "",
 
       provider:
         ai.provider,
@@ -3592,8 +3494,7 @@ Responda em JSON com:
         err.message,
 
       statusCode:
-        err.statusCode ||
-        500
+        err.statusCode || 500
     };
   }
 }
@@ -3676,9 +3577,7 @@ function sendJson(
   data
 ) {
   const body =
-    JSON.stringify(
-      data
-    );
+    JSON.stringify(data);
 
   res.statusCode =
     status;
@@ -3764,9 +3663,7 @@ function safeFilePath(
   }
 
   if (
-    decoded.includes(
-      ".."
-    )
+    decoded.includes("..")
   ) {
     return null;
   }
@@ -3791,9 +3688,7 @@ function safeFilePath(
     );
 
   const rootWithSep =
-    ROOT.endsWith(
-      path.sep
-    )
+    ROOT.endsWith(path.sep)
       ? ROOT
       : ROOT + path.sep;
 
@@ -3997,8 +3892,7 @@ const server =
 
               latest:
                 history.items[
-                  history.items.length -
-                    1
+                  history.items.length - 1
                 ] || null
             };
           } catch (err) {
@@ -4064,8 +3958,7 @@ const server =
               await getHistory(
                 url.searchParams.get(
                   "force"
-                ) ===
-                  "1"
+                ) === "1"
               );
 
             const sorted =
@@ -4165,8 +4058,7 @@ const server =
 
                 latest:
                   sorted[
-                    sorted.length -
-                      1
+                    sorted.length - 1
                   ] || null,
 
                 analysis,
@@ -4184,7 +4076,10 @@ const server =
                   false,
 
                 error:
-                  err.message
+                  err.message,
+
+                source:
+                  sourceStatus
               }
             );
           }
@@ -4205,9 +4100,7 @@ const server =
             "POST"
         ) {
           const body =
-            await readBody(
-              req
-            );
+            await readBody(req);
 
           let colors =
             Array.isArray(
@@ -4269,9 +4162,7 @@ const server =
             "POST"
         ) {
           const body =
-            await readBody(
-              req
-            );
+            await readBody(req);
 
           let colors =
             Array.isArray(
@@ -4319,7 +4210,7 @@ const server =
 
           if (
             analysis.signal !==
-              "SIGNAL"
+            "SIGNAL"
           ) {
             finalAnalysis = {
               ...analysis,
@@ -4327,15 +4218,13 @@ const server =
               aiSignal:
                 false,
 
-              ai:
-                ai
+              ai
             };
           } else {
             finalAnalysis = {
               ...analysis,
 
-              ai:
-                ai,
+              ai,
 
               aiSignal:
                 Boolean(
@@ -4380,7 +4269,8 @@ const server =
               ok:
                 true,
 
-              book: [],
+              book:
+                [],
 
               pending:
                 null,
@@ -4488,7 +4378,10 @@ const server =
               0,
 
             error:
-              null
+              null,
+
+            sources:
+              sourceStatus
           };
 
           try {
@@ -4505,9 +4398,15 @@ const server =
 
             result.count =
               history.items.length;
+
+            result.sources =
+              sourceStatus;
           } catch (err) {
             result.error =
               err.message;
+
+            result.sources =
+              sourceStatus;
           }
 
           sendJson(
@@ -4523,7 +4422,7 @@ const server =
 
         /*
         ======================================================
-        STATIC FILES
+        STATIC
         ======================================================
         */
 
