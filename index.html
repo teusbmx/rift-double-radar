@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="pt-BR">
 
 <head>
@@ -6,8 +7,9 @@
 <meta charset="UTF-8">
 
 <meta
-  name="viewport"
-  content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+name="viewport"
+content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+
 >
 
 <meta name="theme-color" content="#070b14">
@@ -68,8 +70,6 @@ button{
   padding:18px 14px 50px;
 }
 
-/* HEADER */
-
 .header{
   display:flex;
   align-items:flex-start;
@@ -128,8 +128,6 @@ button{
   box-shadow:none;
 }
 
-/* BUTTONS */
-
 .toolbar{
   display:flex;
   gap:8px;
@@ -179,8 +177,6 @@ button{
   transform:none;
 }
 
-/* GRID */
-
 .grid{
   display:grid;
   grid-template-columns:repeat(6,1fr);
@@ -212,8 +208,6 @@ button{
 .stat-value.small{
   font-size:15px;
 }
-
-/* HISTORY */
 
 .card{
   background:linear-gradient(180deg,#0d1725,#0b1420);
@@ -275,8 +269,6 @@ button{
   background:#f2f4f7;
   color:#171b21;
 }
-
-/* MAIN AI */
 
 .ai{
   position:relative;
@@ -373,8 +365,6 @@ button{
   box-shadow:0 0 12px #2ee59d88;
   transition:width .35s ease;
 }
-
-/* ORB */
 
 .orb{
   position:relative;
@@ -475,8 +465,6 @@ button{
   100%{transform:scale(1)}
 }
 
-/* ENTRADA */
-
 .foco{
   position:relative;
   z-index:2;
@@ -507,8 +495,6 @@ button{
   font-size:11px;
   line-height:1.5;
 }
-
-/* ANALYTICS */
 
 .analytics{
   display:grid;
@@ -550,8 +536,6 @@ button{
 .metric .red{
   color:var(--red);
 }
-
-/* SIGNAL */
 
 .signal{
   margin-top:12px;
@@ -666,8 +650,6 @@ button{
   line-height:1.7;
 }
 
-/* SECONDARY GRID */
-
 .bottom-grid{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -710,8 +692,6 @@ button{
   font-size:10px;
   line-height:1.6;
 }
-
-/* CONSENSUS */
 
 .consensus-list{
   display:grid;
@@ -756,8 +736,6 @@ button{
   padding:12px 4px;
   font-size:10px;
 }
-
-/* BOOK */
 
 .wl{
   display:grid;
@@ -845,8 +823,6 @@ button{
   color:#e7bb55;
 }
 
-/* FOOTER */
-
 .footer-note{
   margin-top:14px;
   color:#4f6277;
@@ -854,8 +830,6 @@ button{
   text-align:center;
   line-height:1.6;
 }
-
-/* MOBILE */
 
 @media(max-width:850px){
 
@@ -974,407 +948,448 @@ button{
 
   <div class="header">
 
-    <div class="brand">
+```
+<div class="brand">
 
-      <h1>
-        RIFT <span>Double Radar</span>
-      </h1>
+  <h1>
+    RIFT <span>Double Radar</span>
+  </h1>
 
-      <p>
-        Radar estatístico · análise local · consenso de estratégias
-      </p>
+  <p>
+    Radar estatístico · análise local · consenso de estratégias
+  </p>
 
-    </div>
+</div>
 
-    <div class="live-pill" id="livePill">
+<div class="live-pill" id="livePill">
 
-      <span class="live-dot"></span>
+  <span class="live-dot"></span>
 
-      <span id="livePillText">
-        AO VIVO
-      </span>
+  <span id="livePillText">
+    AO VIVO
+  </span>
 
-    </div>
+</div>
+```
 
   </div>
-
 
   <div class="toolbar">
 
-    <button
-      class="btn primary"
-      onclick="forceDemo()"
-    >
-      🎲 Gerar demo RNG
-    </button>
+```
+<button
+  class="btn primary"
+  onclick="forceDemo()"
+>
+  🎲 Gerar demo RNG
+</button>
 
-    <button
-      class="btn success"
-      id="btnLive"
-      onclick="toggleLive()"
-    >
-      ⏸ Parar ao vivo
-    </button>
+<button
+  class="btn success"
+  id="btnLive"
+  onclick="toggleLive()"
+>
+  ⏸ Parar ao vivo
+</button>
 
-    <button
-      class="btn blue"
-      id="btnAI"
-      onclick="forceAI()"
-    >
-      🧠 Analisar agora
-    </button>
+<button
+  class="btn blue"
+  id="btnAI"
+  onclick="forceAI()"
+>
+  🧠 Analisar agora
+</button>
 
-    <button
-      class="btn"
-      onclick="manualRefresh()"
-    >
-      ↻ Atualizar
-    </button>
+<button
+  class="btn"
+  onclick="manualRefresh()"
+>
+  ↻ Atualizar
+</button>
+```
 
   </div>
-
 
   <div class="grid">
 
-    <div class="stat">
-      <div class="stat-label">RODADAS</div>
-      <span class="stat-value" id="nRod">0</span>
-    </div>
+```
+<div class="stat">
+  <div class="stat-label">RODADAS</div>
+  <span class="stat-value" id="nRod">0</span>
+</div>
 
-    <div class="stat">
-      <div class="stat-label">VERMELHO</div>
-      <span class="stat-value" id="nV">0</span>
-    </div>
+<div class="stat">
+  <div class="stat-label">VERMELHO</div>
+  <span class="stat-value" id="nV">0</span>
+</div>
 
-    <div class="stat">
-      <div class="stat-label">PRETO</div>
-      <span class="stat-value" id="nP">0</span>
-    </div>
+<div class="stat">
+  <div class="stat-label">PRETO</div>
+  <span class="stat-value" id="nP">0</span>
+</div>
 
-    <div class="stat">
-      <div class="stat-label">BRANCO</div>
-      <span class="stat-value" id="nB">0</span>
-    </div>
+<div class="stat">
+  <div class="stat-label">BRANCO</div>
+  <span class="stat-value" id="nB">0</span>
+</div>
 
-    <div class="stat">
-      <div class="stat-label">STREAK</div>
-      <span class="stat-value small" id="nSt">—</span>
-    </div>
+<div class="stat">
+  <div class="stat-label">STREAK</div>
+  <span class="stat-value small" id="nSt">—</span>
+</div>
 
-    <div class="stat">
-      <div class="stat-label">GAP BRANCO</div>
-      <span class="stat-value" id="nGap">0</span>
-    </div>
+<div class="stat">
+  <div class="stat-label">GAP BRANCO</div>
+  <span class="stat-value" id="nGap">0</span>
+</div>
+```
 
   </div>
-
 
   <div class="card">
 
-    <div class="card-head">
+```
+<div class="card-head">
 
-      <div class="card-title">
-        HISTÓRICO RECENTE
-      </div>
-
-      <div class="card-meta" id="grafOk">
-        aguardando dados
-      </div>
-
-    </div>
-
-    <div class="dots" id="dots"></div>
-
+  <div class="card-title">
+    HISTÓRICO RECENTE
   </div>
 
+  <div class="card-meta" id="grafOk">
+    aguardando dados
+  </div>
+
+</div>
+
+<div class="dots" id="dots"></div>
+```
+
+  </div>
 
   <div class="ai">
 
-    <div class="ai-top">
+```
+<div class="ai-top">
 
-      <div class="ai-label" id="aiLab">
-        RIFT ANALYZER
-      </div>
+  <div class="ai-label" id="aiLab">
+    RIFT ANALYZER
+  </div>
 
-      <div class="ai-model" id="mod">
-        aguardando modelo
-      </div>
+  <div class="ai-model" id="mod">
+    aguardando modelo
+  </div>
 
-      <div class="analysis-text" id="analysisText">
-        Aguardando nova rodada...
-      </div>
+  <div class="analysis-text" id="analysisText">
+    Aguardando nova rodada...
+  </div>
 
-      <div class="progress" id="progress">
+  <div class="progress" id="progress">
 
-        <div
-          class="progress-bar"
-          id="progressBar"
-        ></div>
+    <div
+      class="progress-bar"
+      id="progressBar"
+    ></div>
 
-      </div>
+  </div>
 
-      <div class="orb waiting" id="orb">
+  <div class="orb waiting" id="orb">
 
-        <div class="orb-inner">
+    <div class="orb-inner">
 
-          <strong id="conf">—</strong>
+      <strong id="conf">—</strong>
 
-          <small id="confLab">
-            aguardando dados
-          </small>
-
-        </div>
-
-      </div>
-
-      <div class="foco" id="foco">
-        ENTRADA: —
-      </div>
-
-      <div class="motivo" id="motivo">
-        Aguardando uma análise.
-      </div>
-
-    </div>
-
-
-    <div class="analytics">
-
-      <div class="metric">
-
-        <label>
-          QUALIDADE
-        </label>
-
-        <strong id="quality">
-          —
-        </strong>
-
-      </div>
-
-      <div class="metric">
-
-        <label>
-          CONSENSO
-        </label>
-
-        <strong id="consensus">
-          —
-        </strong>
-
-      </div>
-
-      <div class="metric">
-
-        <label>
-          REGIME
-        </label>
-
-        <strong id="regimeShort">
-          —
-        </strong>
-
-      </div>
-
-      <div class="metric">
-
-        <label>
-          BACKTEST
-        </label>
-
-        <strong id="backtestRate">
-          —
-        </strong>
-
-      </div>
+      <small id="confLab">
+        aguardando dados
+      </small>
 
     </div>
 
   </div>
 
+  <div class="foco" id="foco">
+    ENTRADA: —
+  </div>
+
+  <div class="motivo" id="motivo">
+    Aguardando uma análise.
+  </div>
+
+</div>
+
+<div class="analytics">
+
+  <div class="metric">
+
+    <label>
+      QUALIDADE
+    </label>
+
+    <strong id="quality">
+      —
+    </strong>
+
+  </div>
+
+  <div class="metric">
+
+    <label>
+      CONSENSO
+    </label>
+
+    <strong id="consensus">
+      —
+    </strong>
+
+  </div>
+
+  <div class="metric">
+
+    <label>
+      REGIME
+    </label>
+
+    <strong id="regimeShort">
+      —
+    </strong>
+
+  </div>
+
+  <div class="metric">
+
+    <label>
+      BACKTEST
+    </label>
+
+    <strong id="backtestRate">
+      —
+    </strong>
+
+  </div>
+
+</div>
+```
+
+  </div>
 
   <div class="signal" id="signalBox">
 
-    <div class="signal-head">
+```
+<div class="signal-head">
 
-      <div class="signal-label">
-        DECISÃO DA ANÁLISE
-      </div>
-
-      <div
-        class="status-badge"
-        id="signalStatus"
-      >
-        AGUARDANDO
-      </div>
-
-    </div>
-
-    <h2 id="entrar">
-      ENTRADA: AGUARDANDO
-    </h2>
-
-    <div class="signal-sub" id="sinalSub">
-      O sistema ainda não concluiu a análise.
-    </div>
-
-    <div class="chips" id="chips"></div>
-
-    <div class="padroes" id="pads">
-      Nenhuma análise disponível.
-    </div>
-
+  <div class="signal-label">
+    DECISÃO DA ANÁLISE
   </div>
 
+  <div
+    class="status-badge"
+    id="signalStatus"
+  >
+    AGUARDANDO
+  </div>
+
+</div>
+
+<h2 id="entrar">
+  ENTRADA: AGUARDANDO
+</h2>
+
+<div class="signal-sub" id="sinalSub">
+  O sistema ainda não concluiu a análise.
+</div>
+
+<div class="chips" id="chips"></div>
+
+<div class="padroes" id="pads">
+  Nenhuma análise disponível.
+</div>
+```
+
+  </div>
 
   <div class="bottom-grid">
 
-    <div class="card">
+```
+<div class="card">
 
-      <div class="section-title">
-        LEITURA DO REGIME
-      </div>
+  <div class="section-title">
+    LEITURA DO REGIME
+  </div>
 
-      <div class="regime">
+  <div class="regime">
 
-        <div>
+    <div>
 
-          <div
-            class="regime-name"
-            id="regimeName"
-          >
-            NEUTRO
-          </div>
-
-          <div
-            class="reasons"
-            id="regimeReasons"
-          >
-            Aguardando dados suficientes.
-          </div>
-
-        </div>
-
-        <div
-          class="regime-score"
-          id="regimeScore"
-        >
-          —
-        </div>
-
-      </div>
-
-    </div>
-
-
-    <div class="card">
-
-      <div class="section-title">
-        CONSENSO DAS ESTRATÉGIAS
+      <div
+        class="regime-name"
+        id="regimeName"
+      >
+        NEUTRO
       </div>
 
       <div
-        class="consensus-list"
-        id="consensusList"
+        class="reasons"
+        id="regimeReasons"
       >
-        <div class="consensus-empty">
-          Aguardando estratégias...
-        </div>
+        Aguardando dados suficientes.
       </div>
 
     </div>
 
-  </div>
-
-
-  <div class="wl">
-
-    <div class="stat">
-
-      <div class="stat-label">
-        ACERTOS
-      </div>
-
-      <b class="ok" id="w">
-        0
-      </b>
-
+    <div
+      class="regime-score"
+      id="regimeScore"
+    >
+      —
     </div>
-
-    <div class="stat">
-
-      <div class="stat-label">
-        ERROS
-      </div>
-
-      <b class="bad" id="l">
-        0
-      </b>
-
-    </div>
-
-    <div class="stat">
-
-      <div class="stat-label">
-        PENDENTES
-      </div>
-
-      <b id="pend">
-        0
-      </b>
-
-    </div>
-
-    <div class="stat">
-
-      <div class="stat-label">
-        ASSERTIVIDADE
-      </div>
-
-      <b id="acc">
-        0%
-      </b>
-
-    </div>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="card-head">
-
-      <div class="card-title">
-        LIVRO DE RESULTADOS
-      </div>
-
-      <div class="card-meta">
-        últimas análises
-      </div>
-
-    </div>
-
-    <div class="book" id="book">
-      Aguardando primeira entrada...
-    </div>
-
-  </div>
-
-
-  <div class="footer-note">
-
-    RIFT Double Radar utiliza dados históricos
-    e modelos estatísticos/heurísticos.
-
-    Nenhuma análise garante o resultado
-    de uma rodada futura.
 
   </div>
 
 </div>
 
+<div class="card">
+
+  <div class="section-title">
+    CONSENSO DAS ESTRATÉGIAS
+  </div>
+
+  <div
+    class="consensus-list"
+    id="consensusList"
+  >
+    <div class="consensus-empty">
+      Aguardando estratégias...
+    </div>
+  </div>
+
+</div>
+```
+
+  </div>
+
+  <div class="wl">
+
+```
+<div class="stat">
+
+  <div class="stat-label">
+    ACERTOS
+  </div>
+
+  <b class="ok" id="w">
+    0
+  </b>
+
+</div>
+
+<div class="stat">
+
+  <div class="stat-label">
+    ERROS
+  </div>
+
+  <b class="bad" id="l">
+    0
+  </b>
+
+</div>
+
+<div class="stat">
+
+  <div class="stat-label">
+    PENDENTES
+  </div>
+
+  <b id="pend">
+    0
+  </b>
+
+</div>
+
+<div class="stat">
+
+  <div class="stat-label">
+    ASSERTIVIDADE
+  </div>
+
+  <b id="acc">
+    0%
+  </b>
+
+</div>
+```
+
+  </div>
+
+  <div class="card">
+
+```
+<div class="card-head">
+
+  <div class="card-title">
+    LIVRO DE RESULTADOS
+  </div>
+
+  <div class="card-meta">
+    últimas análises
+  </div>
+
+</div>
+
+<div class="book" id="book">
+  Aguardando primeira entrada...
+</div>
+```
+
+  </div>
+
+  <div class="footer-note">
+
+```
+RIFT Double Radar utiliza dados históricos
+e modelos estatísticos/heurísticos.
+
+Nenhuma análise garante o resultado
+de uma rodada futura.
+```
+
+  </div>
+
+</div>
 
 <script>
+
+/* =========================================================
+   CONFIGURAÇÃO ONLINE
+========================================================= */
+
+/*
+ * FRONTEND:
+ * Netlify
+ *
+ * BACKEND:
+ * Railway
+ */
+
+const API_BASE =
+  "https://rift-double-radar-production.up.railway.app";
+
+
+/*
+ * Monta corretamente qualquer endpoint
+ * do servidor Railway.
+ */
+
+function apiUrl(path){
+
+  return (
+    API_BASE.replace(/\/+$/,"") +
+    "/" +
+    String(path || "")
+      .replace(/^\/+/,"")
+  );
+
+}
+
 
 /* =========================================================
    ESTADO
@@ -2239,19 +2254,6 @@ function normalizeStrategyList(ai){
     null;
 
 
-  /*
-   * O SERVER ATUAL MANDA:
-   *
-   * strategies: {
-   *   markov: {...},
-   *   density: {...},
-   *   streak: {...},
-   *   ...
-   * }
-   *
-   * Portanto transformamos OBJETO -> ARRAY.
-   */
-
   if(
     source &&
     !Array.isArray(source) &&
@@ -2299,10 +2301,6 @@ function normalizeStrategyList(ai){
 
   }
 
-
-  /*
-   * Compatibilidade com versões antigas.
-   */
 
   const legacy = [
 
@@ -2426,11 +2424,6 @@ function renderConsensus(ai){
             );
 
 
-          /*
-           * Se a estratégia não tiver score,
-           * tentamos usar voto/peso.
-           */
-
           if(
             score === null
           ){
@@ -2512,7 +2505,6 @@ function renderConsensus(ai){
         }
       )
       .join("");
-
 
 }
 
@@ -2884,14 +2876,6 @@ function renderBook(ai){
     ) ?? 0;
 
 
-  /*
-   * Corrige o problema:
-   *
-   * pending: {entrada,conf,status}
-   *
-   * Agora nunca mais mostra [object Object].
-   */
-
   let pending =
     ai.pendentes ??
     ai.pendingCount ??
@@ -2980,11 +2964,6 @@ function renderBook(ai){
             status ||
             "PENDENTE";
 
-
-          /*
-           * WIN = verde
-           * LOSS = vermelho
-           */
 
           if(
             status === "WIN" ||
@@ -3125,8 +3104,10 @@ async function pullHistory(){
 
   const response =
     await fetch(
-      "/api/history?_=" +
-      Date.now(),
+      apiUrl(
+        "/api/history?_=" +
+        Date.now()
+      ),
       {
         cache:"no-store"
       }
@@ -3181,12 +3162,6 @@ async function pullHistory(){
         }
       );
 
-
-  /*
-   * O servidor deve entregar cronologicamente.
-   * Aqui reforçamos a ordenação para garantir
-   * que a última pedra seja realmente a última.
-   */
 
   const validTimes =
     items
@@ -3274,8 +3249,10 @@ async function refreshBook(){
 
     const response =
       await fetch(
-        "/api/book?_=" +
-        Date.now(),
+        apiUrl(
+          "/api/book?_=" +
+          Date.now()
+        ),
         {
           cache:"no-store"
         }
@@ -3322,12 +3299,6 @@ function keyOf(list){
       list.length - 1
     ];
 
-
-  /*
-   * A chave principal agora é a ÚLTIMA PEDRA.
-   * Isso evita problemas quando a API muda
-   * a ordem do histórico.
-   */
 
   return [
 
@@ -3390,7 +3361,7 @@ async function askAI(
 
     const response =
       await fetch(
-        "/api/ai",
+        apiUrl("/api/ai"),
         {
 
           method:"POST",
